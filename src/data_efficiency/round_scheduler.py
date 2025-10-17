@@ -9,7 +9,7 @@ from data_efficiency.utils.data import build_dataloader
 
 class RoundScheduler:
     """
-    Manager of available data for extracting via different selection strategies
+    Manager of available data for selecting via different selection strategies
 
     - The run is a full experiment of model training
     - Round is the one epoch where we are selecting data for training.
