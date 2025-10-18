@@ -51,7 +51,7 @@ class RoundScheduler:
             self.seen.add(idx)
 
     def _prepare_dataloader(self) -> DataLoader:
-        subset = Subset(self.dataset, self.seen)
+        subset = Subset(self.dataset, list(self.seen))
         return build_dataloader(subset, shuffle=True)
 
     def get_train_dataloader(self, **kwargs) -> DataLoader:
