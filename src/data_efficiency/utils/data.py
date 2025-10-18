@@ -31,10 +31,13 @@ def upload_dataset(split: str) -> Dataset:
     return load_from_disk(Path(global_config.data_dir, split))
 
 
-def build_collate_fn(tokenizer: PreTrainedTokenizer) -> Callable:
-    base = DataCollatorWithPadding(tokenizer=tokenizer)
+class CustomCollator:
+    """Collate function that can be pickled for multiprocessing."""
 
-    def collate_fn(features: Dict[str, torch.Tensor]) -> Dict[str, Any]:
+    def __init__(self, tokenizer: PreTrainedTokenizer):
+        self.base = DataCollatorWithPadding(tokenizer=tokenizer)
+
+    def __call__(self, features: Dict[str, torch.Tensor]) -> Dict[str, Any]:
         batch_lbl = [f["label"] for f in features]
         model_feats = []
         for f in features:
@@ -43,11 +46,13 @@ def build_collate_fn(tokenizer: PreTrainedTokenizer) -> Callable:
             }
             model_feats.append(d)
 
-        padded = base(model_feats)
+        padded = self.base(model_feats)
         padded["labels"] = torch.tensor(batch_lbl, dtype=torch.long)
         return padded
 
-    return collate_fn
+
+def build_collate_fn(tokenizer: PreTrainedTokenizer) -> Callable:
+    return CustomCollator(tokenizer)
 
 
 def build_dataloader(dataset: TorchDataset, shuffle: bool = False) -> DataLoader:
