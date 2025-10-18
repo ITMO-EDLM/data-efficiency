@@ -1,5 +1,5 @@
 from torch import nn, torch
-from transformers import ModernBertConfig, ModernBertPreTrainedModel
+from transformers import ModernBertConfig, ModernBertModel
 
 from data_efficiency.config import global_config
 
@@ -21,9 +21,7 @@ class ModernBert(nn.Module):
     ):
         super().__init__()
         self.config = ModernBertConfig.from_pretrained(backbone_name)
-        self.backbone: ModernBertPreTrainedModel = ModernBertPreTrainedModel.from_pretrained(
-            backbone_name
-        )
+        self.backbone: ModernBertModel = ModernBertModel.from_pretrained(backbone_name)
         self.hidden = getattr(self.config, "hidden_dim", 768)
 
         self.use_pooler = use_pooler
@@ -45,12 +43,10 @@ class ModernBert(nn.Module):
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor = None,
-        token_type_ids: torch.Tensor = None,
     ) -> torch.Tensor:
         output = self.backbone(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
             return_dict=True,
         )
 
