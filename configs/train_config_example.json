@@ -1,0 +1,30 @@
+{
+  "model_name": "answerdotai/ModernBERT-base",
+  "num_classes": 2,
+  "dropout": 0.2,
+  "freeze_backbone": true,
+  "use_pooler": false,
+  "use_float16": false,
+  "train_size": null,
+  "val_size": null,
+  "data_dir": "./data",
+  "loss_type": "ce",
+  "n_epochs": 3,
+  "device": "mps",
+  "run_budget": 0.1,
+  "rounds_portions": [0.5, 0.5],
+  "strategy_name": "random",
+  "strategy_params": {},
+  "optimizer_params": {
+    "lr": 2e-5
+  },
+  "metrics": ["accuracy", "f1"],
+  "log_dir": "./runs",
+  "run_name": "random_train_cutted_test_3epoch_v2",
+  "checkpoint_dir": "./checkpoints",
+  "save_checkpoints": true,
+  "use_clearml": true,
+  "clearml_project_name": "DataEfficiency",
+  "clearml_task_name": null
+}
+

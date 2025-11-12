@@ -1,0 +1,17 @@
+{
+  "checkpoint_path": "./checkpoints/random_train_cutted_test_3epoch/best/model.pt",
+  "model_name": "answerdotai/ModernBERT-base",
+  "num_classes": 2,
+  "dropout": 0.2,
+  "run_name": "random_train_cutted_test_3epoch_eval",
+  "device": "mps",
+  "eval_splits": ["validation", "test"],
+  "data_dir": "./data",
+  "compute_confusion_matrix": true,
+  "compute_auc_roc": true,
+  "compute_pr_curve": true,
+  "artifacts_dir": "./artifacts",
+  "save_predictions": false,
+  "save_metrics_csv": true
+}
+
