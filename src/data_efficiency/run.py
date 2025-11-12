@@ -163,6 +163,11 @@ def main(
 
     # Run training
     trainer.setup()
+
+    # Run hyperparameter tuning if enabled and strategy is "all"
+    if config.enable_hyperparameter_tuning and config.strategy_name == "all":
+        trainer.warmup()
+
     trainer.run()
 
 

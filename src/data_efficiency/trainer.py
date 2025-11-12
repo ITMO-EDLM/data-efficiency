@@ -11,6 +11,10 @@ from data_efficiency.model import ModernBert
 from data_efficiency.round_scheduler import RoundScheduler
 from data_efficiency.strategies import get_strategy
 from data_efficiency.utils import MetricTracker, build_dataloader, get_loss
+from data_efficiency.utils.hyperparameter_tuning import (
+    find_optimal_batch_size,
+    tune_hyperparameters,
+)
 
 
 class Trainer:
@@ -202,3 +206,126 @@ class Trainer:
         # Close tracker and TensorBoard writer
         self.tracker.close()
         print("Training finished!")
+
+    def warmup(self) -> None:
+        """
+        Перебор гиперпараметров перед основным обучением.
+        Работает только для стратегии "all".
+        """
+        print("=" * 60)
+        print("Starting Hyperparameter Tuning (Warmup)")
+        print("=" * 60)
+
+        # 1. Определяем оптимальный batch size
+        print("\n[1/2] Finding optimal batch size...")
+        optimal_batch_size = find_optimal_batch_size(
+            self.model, self.train_dataset, self.device, initial_batch_size=self.batch_size
+        )
+        print(f"Optimal batch size: {optimal_batch_size}")
+        self.batch_size = optimal_batch_size
+
+        # 2. Перебор гиперпараметров на маленькой выборке
+        print("\n[2/2] Tuning hyperparameters (Random Search)...")
+
+        # Подготавливаем параметры для перебора
+        tuning_config = self.config or {}
+        dropout_range = (
+            tuple(tuning_config.get("dropout_range", [0.1, 0.5]))
+            if tuning_config.get("dropout_range")
+            else (0.1, 0.5)
+        )
+        lr_range = (
+            tuple(tuning_config.get("lr_range", [1e-5, 1e-4]))
+            if tuning_config.get("lr_range")
+            else (1e-5, 1e-4)
+        )
+        weight_decay_options = tuning_config.get("weight_decay_options", [0.0, 0.01, 0.1])
+        betas_options_raw = tuning_config.get(
+            "betas_options", [[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]]
+        )
+        betas_options = [tuple(b) for b in betas_options_raw]
+
+        # Определяем num_classes из конфига или из модели
+        num_classes = tuning_config.get("num_classes")
+        if num_classes is None:
+            # Пытаемся определить из размерности классификатора
+            num_classes = self.model.classifier.out_features
+
+        model_config = {
+            "model_name": self.model_name,
+            "num_classes": num_classes,
+            "freeze_backbone": tuning_config.get("freeze_backbone", True),
+            "use_pooler": tuning_config.get("use_pooler", False),
+            "use_float16": tuning_config.get("use_float16", False),
+        }
+
+        best_params, tuning_results = tune_hyperparameters(
+            model_config=model_config,
+            train_dataset=self.train_dataset,
+            val_dataset=self.val_dataset,
+            device=self.device,
+            n_iterations=tuning_config.get("tuning_n_iterations", 25),
+            n_warmup_epochs=tuning_config.get("warmup_epochs", 2),
+            tuning_sample_size=tuning_config.get("tuning_sample_size", 0.15),
+            dropout_range=dropout_range,
+            lr_range=lr_range,
+            weight_decay_options=weight_decay_options,
+            betas_options=betas_options,
+            tuning_metric=tuning_config.get("tuning_metric", "val_loss"),
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            loss_type=self.loss_type,
+            metrics_fn=self.metrics_fn,
+        )
+
+        print(f"\nBest hyperparameters found:")
+        print(f"  dropout: {best_params['dropout']}")
+        print(f"  lr: {best_params['lr']:.2e}")
+        print(f"  weight_decay: {best_params['weight_decay']}")
+        print(f"  betas: {best_params['betas']}")
+
+        # 3. Обновляем конфигурацию
+        self.optimizer_params = {
+            "lr": best_params["lr"],
+            "weight_decay": best_params["weight_decay"],
+            "betas": best_params["betas"],
+        }
+
+        # 4. Пересоздаем модель с оптимальным dropout и сбрасываем веса
+        print("\nRecreating model with optimal dropout and resetting weights...")
+        self.model = ModernBert(
+            backbone_name=self.model_name,
+            num_classes=model_config["num_classes"],
+            dropout=best_params["dropout"],
+            freeze_backbone=model_config["freeze_backbone"],
+            use_pooler=model_config["use_pooler"],
+            use_float16=model_config["use_float16"],
+        )
+        self.model.to(self.device)
+
+        # 5. Пересоздаем оптимизатор с новыми параметрами
+        self.optimizer = AdamW(self.model.parameters(), **self.optimizer_params)
+
+        # 6. Обновляем round_scheduler с новым batch_size
+        self.round_scheduler = RoundScheduler(
+            run_budget=self.run_budget,
+            rounds_portions=self.round_portions,
+            dataset=self.train_dataset,
+            strategy=get_strategy(**self.strategy_data),
+            model_name=self.model_name,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+        )
+
+        # 7. Обновляем val_loader с новым batch_size
+        self.val_loader = build_dataloader(
+            self.val_dataset,
+            model_name=self.model_name,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+
+        print("=" * 60)
+        print("Hyperparameter Tuning Complete")
+        print("=" * 60)
