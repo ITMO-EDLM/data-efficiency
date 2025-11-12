@@ -21,7 +21,7 @@ class TokenizedDataset(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = TokenizedDataset(upload_dataset("test"))
+    dataset = TokenizedDataset(upload_dataset("test", data_dir="./data"))
     rand_idx = random.randint(0, len(dataset))
     rand_item = dataset[rand_idx]
     assert isinstance(rand_item, dict)

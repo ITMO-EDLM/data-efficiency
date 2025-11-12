@@ -1,8 +1,6 @@
 from torch import nn, torch
 from transformers import ModernBertConfig, ModernBertModel
 
-from data_efficiency.config import global_config
-
 
 class ModernBert(nn.Module):
     """
@@ -66,7 +64,8 @@ class ModernBert(nn.Module):
 
 if __name__ == "__main__":
     # Simple load tests
-    model = ModernBert(global_config.model_name, 2, 0.2, True, False, True)
+    model_name = "answerdotai/ModernBERT-base"
+    model = ModernBert(model_name, 2, 0.2, True, False, True)
     assert model.config.hidden_size == model.hidden
     assert all([p.dtype == torch.float16 for p in model.classifier.parameters()])
     assert all([p.dtype == torch.float16 for p in model.backbone.parameters()])

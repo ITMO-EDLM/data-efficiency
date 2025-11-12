@@ -23,11 +23,17 @@ class RoundScheduler:
         rounds_portions: List[float],
         dataset: TokenizedDataset,
         strategy: DataSelectionStrategy,
+        model_name: str = "answerdotai/ModernBERT-base",
+        batch_size: int = 64,
+        num_workers: int = 4,
     ):
         self.rounds_portions = rounds_portions
         self.round_portion_iter = iter(rounds_portions)
         self.dataset = dataset
         self.strategy = strategy
+        self.model_name = model_name
+        self.batch_size = batch_size
+        self.num_workers = num_workers
 
         self.N = len(self.dataset)
         self.run_budget = int(self.N * run_budget)
@@ -52,7 +58,13 @@ class RoundScheduler:
 
     def _prepare_dataloader(self) -> DataLoader:
         subset = Subset(self.dataset, list(self.seen))
-        return build_dataloader(subset, shuffle=True)
+        return build_dataloader(
+            subset,
+            model_name=self.model_name,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=True,
+        )
 
     def get_train_dataloader(self, **kwargs) -> DataLoader:
         limit = self._calculate_limit()
