@@ -7,9 +7,9 @@ import tqdm
 
 from data_efficiency.data import TokenizedDataset
 from data_efficiency.model import ModernBert
-from data_efficiency.trainer import create_optimizer_with_different_lr
 from data_efficiency.utils.data import build_dataloader
 from data_efficiency.utils.loss import get_loss
+from data_efficiency.utils.optimizer import create_optimizer_with_different_lr
 
 
 def find_optimal_batch_size(
