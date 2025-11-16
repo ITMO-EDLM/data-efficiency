@@ -1,0 +1,18 @@
+{
+  "checkpoint_path": "./checkpoints/all_with_tuning_v2/best/model.pt",
+  "model_name": "answerdotai/ModernBERT-base",
+  "num_classes": 2,
+  "dropout": 0.4,
+  "run_name": "eval_all_with_tuning_v2",
+  "device": "cuda",
+  "eval_splits": ["validation", "test"],
+  "data_dir": "./data",
+  "compute_confusion_matrix": true,
+  "compute_auc_roc": true,
+  "compute_pr_curve": true,
+  "artifacts_dir": "./artifacts",
+  "save_predictions": false,
+  "save_metrics_csv": true,
+  "batch_size": 256,
+  "num_workers": 4
+}
