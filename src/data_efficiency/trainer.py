@@ -1,7 +1,8 @@
 import random
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
 import torch
 import tqdm
 from torch.optim import AdamW
@@ -39,6 +40,8 @@ class Trainer:
         run_name: str = None,
         checkpoint_dir: str = "./checkpoints",
         save_checkpoints: bool = True,
+        max_checkpoints: int = 3,
+        checkpoint_metric: str = "val_loss",
         use_clearml: bool = False,
         clearml_project_name: Optional[str] = None,
         clearml_task_name: Optional[str] = None,
@@ -62,12 +65,18 @@ class Trainer:
         self.run_name = run_name
         self.checkpoint_dir = checkpoint_dir
         self.save_checkpoints = save_checkpoints
+        self.max_checkpoints = max_checkpoints
+        self.checkpoint_metric = checkpoint_metric
         self.use_clearml = use_clearml
         self.clearml_project_name = clearml_project_name
         self.clearml_task_name = clearml_task_name
         self.config = config
         self.current_epoch = 0
         self.best_val_metric = None
+
+        # Checkpoint management: list of (metric_value, epoch, path)
+        # For loss metrics, lower is better; for accuracy/F1, higher is better
+        self.saved_checkpoints: List[Tuple[float, int, Path]] = []
 
     def setup(self) -> None:
         """
@@ -151,9 +160,46 @@ class Trainer:
             self.tracker.save_vall_loss(loss)
             self.tracker.save_val_metrics(probs, preds, labels)
 
-    def save_checkpoint(self, epoch: int, is_best: bool = False) -> None:
-        """Save model checkpoint with metadata."""
+    def _get_epoch_metric(self, epoch: int) -> Optional[float]:
+        """Get the metric value for a specific epoch."""
+        if self.checkpoint_metric == "val_loss":
+            if epoch in self.tracker.val_loss_history:
+                values = self.tracker.val_loss_history[epoch]
+                if values:  # Check that list is not empty
+                    return float(np.mean(values))
+        else:
+            # For other metrics like accuracy, f1, etc.
+            # Remove "val_" prefix if present (e.g., "val_accuracy" -> "accuracy")
+            metric_name = self.checkpoint_metric.replace("val_", "")
+            if (
+                epoch in self.tracker.val_metrics_history
+                and metric_name in self.tracker.val_metrics_history[epoch]
+            ):
+                values = self.tracker.val_metrics_history[epoch][metric_name]
+                if values:  # Check that list is not empty
+                    return float(np.mean(values))
+        return None
+
+    def _is_metric_better(self, new_metric: float, existing_metric: float) -> bool:
+        """Check if new metric is better than existing one."""
+        # For loss metrics, lower is better; for others (accuracy, f1), higher is better
+        if self.checkpoint_metric == "val_loss":
+            return new_metric < existing_metric
+        else:
+            return new_metric > existing_metric
+
+    def save_checkpoint(self, epoch: int) -> None:
+        """
+        Save model checkpoint only if it's in the top N best models.
+        Maintains only the best max_checkpoints models based on checkpoint_metric.
+        """
         if not self.save_checkpoints:
+            return
+
+        # Get current epoch metric
+        current_metric = self._get_epoch_metric(epoch)
+        if current_metric is None:
+            print(f"Warning: Could not get metric for epoch {epoch}, skipping checkpoint save")
             return
 
         # Create checkpoint directory
@@ -162,29 +208,84 @@ class Trainer:
         else:
             base_dir = Path(self.checkpoint_dir) / "default_run"
 
-        # Save epoch checkpoint
-        epoch_dir = base_dir / f"epoch_{epoch}"
-        epoch_dir.mkdir(parents=True, exist_ok=True)
-
+        # Prepare checkpoint data
         checkpoint = {
             "epoch": epoch,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "loss_type": self.loss_type,
             "n_epochs": self.n_epochs,
+            "metric_value": current_metric,
+            "metric_name": self.checkpoint_metric,
         }
 
-        checkpoint_path = epoch_dir / "model.pt"
-        torch.save(checkpoint, checkpoint_path)
-        print(f"Checkpoint saved to {checkpoint_path}")
+        # Determine if we should save this checkpoint
+        should_save = False
+        checkpoint_path = None
 
-        # Save as best model if applicable
-        if is_best:
-            best_dir = base_dir / "best"
-            best_dir.mkdir(parents=True, exist_ok=True)
-            best_path = best_dir / "model.pt"
-            torch.save(checkpoint, best_path)
-            print(f"Best model saved to {best_path}")
+        if len(self.saved_checkpoints) < self.max_checkpoints:
+            # We have space, save it
+            should_save = True
+            epoch_dir = base_dir / f"epoch_{epoch}"
+            epoch_dir.mkdir(parents=True, exist_ok=True)
+            checkpoint_path = epoch_dir / "model.pt"
+        else:
+            # Check if this is better than the worst saved checkpoint
+            # Sort checkpoints: for loss (lower is better), for others (higher is better)
+            is_loss_metric = self.checkpoint_metric == "val_loss"
+            self.saved_checkpoints.sort(key=lambda x: x[0], reverse=not is_loss_metric)
+
+            worst_metric, worst_epoch, worst_path = self.saved_checkpoints[-1]
+
+            if self._is_metric_better(current_metric, worst_metric):
+                # Remove worst checkpoint
+                if worst_path.exists():
+                    worst_path.unlink()
+                    # Try to remove parent directory if empty
+                    try:
+                        worst_path.parent.rmdir()
+                    except OSError:
+                        pass  # Directory not empty or other error
+
+                # Remove from list
+                self.saved_checkpoints.pop()
+                should_save = True
+
+                epoch_dir = base_dir / f"epoch_{epoch}"
+                epoch_dir.mkdir(parents=True, exist_ok=True)
+                checkpoint_path = epoch_dir / "model.pt"
+                print(f"Removed checkpoint from epoch {worst_epoch} (metric: {worst_metric:.4f})")
+
+        if should_save and checkpoint_path:
+            torch.save(checkpoint, checkpoint_path)
+            self.saved_checkpoints.append((current_metric, epoch, checkpoint_path))
+
+            print(
+                f"Checkpoint saved to {checkpoint_path} "
+                f"(epoch {epoch}, {self.checkpoint_metric}: {current_metric:.4f})"
+            )
+
+            # Update best model if this is the best so far
+            is_loss_metric = self.checkpoint_metric == "val_loss"
+            self.saved_checkpoints.sort(key=lambda x: x[0], reverse=not is_loss_metric)
+            best_metric, best_epoch, _ = self.saved_checkpoints[0]
+
+            # Only update best if current epoch is the best
+            if best_epoch == epoch:
+                best_dir = base_dir / "best"
+                best_dir.mkdir(parents=True, exist_ok=True)
+                best_checkpoint_path = best_dir / "model.pt"
+                torch.save(checkpoint, best_checkpoint_path)
+                print(
+                    f"Best model updated (epoch {best_epoch}, "
+                    f"{self.checkpoint_metric}: {best_metric:.4f})"
+                )
+        else:
+            print(
+                f"Checkpoint not saved (epoch {epoch}, "
+                f"{self.checkpoint_metric}: {current_metric:.4f} "
+                f"not in top {self.max_checkpoints})"
+            )
 
     def run(self) -> None:
         """
@@ -192,21 +293,32 @@ class Trainer:
         """
         for epoch in range(self.n_epochs):
             self.current_epoch = epoch + 1
+            # Sync tracker's current_epoch with trainer's current_epoch
+            # This ensures metrics are saved to the correct epoch
+            self.tracker.current_epoch = self.current_epoch
+
             print(f"Start {self.current_epoch} epoch")
             train_loader = self.round_scheduler.get_train_dataloader()
             self._train_step(train_loader)
             self._val_step(self.val_loader)
+
             self.tracker.end_epoch()
 
-            # Save checkpoint after each epoch
-            # Determine if this is the best model based on validation metrics
-            # For simplicity, we'll save the last epoch as best
-            is_best = epoch == self.n_epochs - 1
-            self.save_checkpoint(self.current_epoch, is_best=is_best)
+            # Save checkpoint only if it's in top N best models
+            # Use the epoch number that was just completed
+            self.save_checkpoint(self.current_epoch)
 
         # Close tracker and TensorBoard writer
         self.tracker.close()
         print("Training finished!")
+
+        # Print summary of saved checkpoints
+        if self.saved_checkpoints:
+            is_loss_metric = self.checkpoint_metric == "val_loss"
+            self.saved_checkpoints.sort(key=lambda x: x[0], reverse=not is_loss_metric)
+            print(f"\nSaved checkpoints (top {len(self.saved_checkpoints)}):")
+            for i, (metric, ep, _) in enumerate(self.saved_checkpoints, 1):
+                print(f"  {i}. Epoch {ep}: {self.checkpoint_metric} = {metric:.4f}")
 
     def warmup(self) -> None:
         """

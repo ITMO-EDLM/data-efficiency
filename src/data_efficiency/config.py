@@ -45,6 +45,8 @@ class TrainingConfig(BaseModel):
     run_name: Optional[str] = None
     checkpoint_dir: str = "./checkpoints"
     save_checkpoints: bool = True
+    max_checkpoints: int = 3  # Maximum number of best checkpoints to keep
+    checkpoint_metric: str = "val_loss"  # Metric to use for checkpoint selection
 
     # ClearML settings
     use_clearml: bool = False

@@ -149,6 +149,8 @@ def main(
         run_name=config.run_name,
         checkpoint_dir=config.checkpoint_dir,
         save_checkpoints=config.save_checkpoints,
+        max_checkpoints=config.max_checkpoints,
+        checkpoint_metric=config.checkpoint_metric,
         use_clearml=config.use_clearml,
         clearml_project_name=config.clearml_project_name,
         clearml_task_name=config.clearml_task_name,
