@@ -3,7 +3,7 @@
   "num_classes": 2,
   "batch_size": 16,
   "dropout": 0.2,
-  "freeze_backbone": true,
+  "unfreeze_layers": 6,
   "use_pooler": false,
   "use_float16": false,
   "data_dir": "./data",
@@ -31,5 +31,12 @@
   "warmup_epochs": 2,
   "tuning_n_iterations": 15,
   "tuning_sample_size": 0.10,
-  "tuning_metric": "val_loss"
+  "tuning_metric": "val_loss",
+  "dropout_range": [0.1, 0.5],
+  "lr_range": [1e-5, 1e-3],
+  "lr_head_range": [1e-4, 1e-3],
+  "lr_backbone_range": [1e-5, 1e-4],
+  "weight_decay_options": [0.0, 0.01, 0.1],
+  "betas_options": [[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]],
+  "unfreeze_layers_options": [3, 6, 9]
 }
