@@ -118,12 +118,6 @@ def main(
     validation_dataset = upload_dataset("validation", data_dir=config.data_dir)
     train_dataset = upload_dataset("train", data_dir=config.data_dir)
 
-    # Apply size limits if specified
-    if config.val_size is not None:
-        validation_dataset = validation_dataset.select(range(config.val_size))
-    if config.train_size is not None:
-        train_dataset = train_dataset.select(range(config.train_size))
-
     # Build metrics dictionary
     metrics_fn = {name: METRICS_MAP[name] for name in config.metrics if name in METRICS_MAP}
     if not metrics_fn:

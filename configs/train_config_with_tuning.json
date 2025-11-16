@@ -1,18 +1,17 @@
 {
   "model_name": "answerdotai/ModernBERT-base",
   "num_classes": 2,
+  "batch_size": 16,
   "dropout": 0.2,
   "freeze_backbone": true,
   "use_pooler": false,
   "use_float16": false,
-  "train_size": null,
-  "val_size": null,
   "data_dir": "./data",
   "loss_type": "ce",
-  "n_epochs": 3,
-  "device": "mps",
+  "n_epochs": 50,
+  "device": "cuda",
   "run_budget": 1.0,
-  "rounds_portions": [0.5, 0.5],
+  "rounds_portions": [1.0],
   "strategy_name": "all",
   "strategy_params": {},
   "optimizer_params": {
@@ -25,11 +24,10 @@
   "save_checkpoints": true,
   "use_clearml": false,
   "clearml_project_name": "DataEfficiency",
-  "clearml_task_name": null,
+  "clearml_task_name": "all with tuning",
   "enable_hyperparameter_tuning": true,
-  "warmup_epochs": 2,
-  "tuning_n_iterations": 25,
-  "tuning_sample_size": 0.15,
+  "warmup_epochs": 3,
+  "tuning_n_iterations": 15,
+  "tuning_sample_size": 0.10,
   "tuning_metric": "val_loss"
 }
-

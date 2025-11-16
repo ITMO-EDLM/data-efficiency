@@ -14,5 +14,5 @@ class AllDatasetSelectionStrategy(DataSelectionStrategy):
         Returns:
             selected_indexes (List[int]): Indexes of all dataset objects
         """
-        selected_indexes = [int(item["idx"].item()) for item in dataset]
+        selected_indexes = list(range(len(dataset)))
         return selected_indexes

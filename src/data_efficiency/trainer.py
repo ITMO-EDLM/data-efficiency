@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -229,20 +230,10 @@ class Trainer:
 
         # Подготавливаем параметры для перебора
         tuning_config = self.config or {}
-        dropout_range = (
-            tuple(tuning_config.get("dropout_range", [0.1, 0.5]))
-            if tuning_config.get("dropout_range")
-            else (0.1, 0.5)
-        )
-        lr_range = (
-            tuple(tuning_config.get("lr_range", [1e-5, 1e-4]))
-            if tuning_config.get("lr_range")
-            else (1e-5, 1e-4)
-        )
-        weight_decay_options = tuning_config.get("weight_decay_options", [0.0, 0.01, 0.1])
-        betas_options_raw = tuning_config.get(
-            "betas_options", [[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]]
-        )
+        dropout_range = tuple(tuning_config["dropout_range"])
+        lr_range = tuple(tuning_config["lr_range"])
+        weight_decay_options = tuning_config["weight_decay_options"]
+        betas_options_raw = tuning_config["betas_options"]
         betas_options = [tuple(b) for b in betas_options_raw]
 
         # Определяем num_classes из конфига или из модели
@@ -258,10 +249,14 @@ class Trainer:
             "use_pooler": tuning_config.get("use_pooler", False),
             "use_float16": tuning_config.get("use_float16", False),
         }
-
+        train_dataset = self.train_dataset.select(
+            random.choices(
+                range(len(self.train_dataset)), k=int(len(self.train_dataset) * self.run_budget)
+            )
+        )
         best_params, tuning_results = tune_hyperparameters(
             model_config=model_config,
-            train_dataset=self.train_dataset,
+            train_dataset=train_dataset,
             val_dataset=self.val_dataset,
             device=self.device,
             n_iterations=tuning_config.get("tuning_n_iterations", 25),
@@ -278,7 +273,7 @@ class Trainer:
             metrics_fn=self.metrics_fn,
         )
 
-        print(f"\nBest hyperparameters found:")
+        print("\nBest hyperparameters found:")
         print(f"  dropout: {best_params['dropout']}")
         print(f"  lr: {best_params['lr']:.2e}")
         print(f"  weight_decay: {best_params['weight_decay']}")

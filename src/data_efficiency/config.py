@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TrainingConfig(BaseModel):
@@ -17,8 +17,6 @@ class TrainingConfig(BaseModel):
     # Dataset settings
     dataset_path: str = "nyu-mll/glue"
     dataset_subset: str = "sst2"
-    train_size: Optional[int] = None  # If None, use full dataset
-    val_size: Optional[int] = None  # If None, use full dataset
     data_dir: str = "./data"
 
     # DataLoader settings
@@ -58,14 +56,17 @@ class TrainingConfig(BaseModel):
     warmup_epochs: int = 2  # Количество эпох для каждой итерации перебора
     tuning_n_iterations: int = 25  # Количество случайных комбинаций для Random Search
     tuning_sample_size: float = 0.15  # Доля train датасета для перебора (0.15 = 15%)
-    tuning_metric: str = "val_loss"  # Метрика для выбора лучших параметров ("val_loss" или "val_accuracy")
+    tuning_metric: str = (
+        "val_loss"  # Метрика для выбора лучших параметров ("val_loss" или "val_accuracy")
+    )
 
     # Диапазоны для Random Search (опционально, есть дефолты)
     batch_size_search_range: Optional[List[int]] = None  # [min, max] или None для автоопределения
-    dropout_range: Optional[List[float]] = None  # [min, max] или None для дефолтного [0.1, 0.5]
-    lr_range: Optional[List[float]] = None  # [min, max] или None для дефолтного [1e-5, 1e-4]
-    weight_decay_options: Optional[List[float]] = None  # Или None для дефолтного [0.0, 0.01, 0.1]
-    betas_options: Optional[List[List[float]]] = None  # Или None для дефолтного [[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]]
+    dropout_range: List[float] = Field([0.1, 0.5])
+    lr_range: List[float] = Field([1e-5, 1e-4])
+    weight_decay_options: Optional[List[float]] = Field([0.0, 0.01, 0.1])
+    betas_options: Optional[List[List[float]]] = Field([[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]]
+    )
 
 
 class EvaluationConfig(BaseModel):

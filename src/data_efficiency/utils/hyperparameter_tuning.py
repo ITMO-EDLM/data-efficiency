@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import tqdm
 from torch.optim import AdamW
-from torch.utils.data import DataLoader
 
 from data_efficiency.data import TokenizedDataset
 from data_efficiency.model import ModernBert
@@ -34,12 +33,12 @@ def find_optimal_batch_size(
         optimal_batch_size: Найденный оптимальный batch size
     """
     min_batch = 1
-    max_batch = initial_batch_size * 4
+    max_batch = initial_batch_size * 8
     optimal_batch = initial_batch_size
 
     print(f"Searching for optimal batch size (initial: {initial_batch_size}, max: {max_batch})...")
 
-    for iteration in range(max_iterations):
+    for _ in tqdm.tqdm(range(max_iterations)):
         if max_batch - min_batch < 2:
             break
 
@@ -62,19 +61,19 @@ def find_optimal_batch_size(
                 y = batch.pop("labels")
                 X = {k: v.to(device) for k, v in batch.items()}
                 y = y.to(device)
-                logits = model(**X)
+                _ = model(**X)
 
             # Успешно - можно увеличить
             optimal_batch = test_batch
             min_batch = test_batch
-            print(f"    ✓ Success")
+            print("    ✓ Success")
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
                 # OOM - уменьшаем
                 max_batch = test_batch
                 if device == "cuda":
                     torch.cuda.empty_cache()
-                print(f"    ✗ OOM")
+                print("    ✗ OOM")
             else:
                 raise e
 
@@ -87,13 +86,13 @@ def tune_hyperparameters(
     train_dataset: TokenizedDataset,
     val_dataset: TokenizedDataset,
     device: str,
-    n_iterations: int = 25,
+    n_iterations: int = 2,
     n_warmup_epochs: int = 2,
     tuning_sample_size: float = 0.15,
     dropout_range: Tuple[float, float] = (0.1, 0.5),
     lr_range: Tuple[float, float] = (1e-5, 1e-4),
-    weight_decay_options: List[float] = [0.0, 0.01, 0.1],
-    betas_options: List[Tuple[float, float]] = [(0.9, 0.999), (0.95, 0.999), (0.9, 0.99)],
+    weight_decay_options: List[float] = [0.0, 0.01, 0.1],  # noqa: B006
+    betas_options: List[Tuple[float, float]] = [(0.9, 0.999), (0.95, 0.999), (0.9, 0.99)],  # noqa: B006
     tuning_metric: str = "val_loss",
     batch_size: int = 64,
     num_workers: int = 4,
@@ -131,7 +130,7 @@ def tune_hyperparameters(
     sample_indices = random.sample(range(train_size), sample_size)
     tuning_train_dataset = train_dataset.select(sample_indices)
 
-    print(f"Using {sample_size} samples ({tuning_sample_size*100:.1f}%) from train for tuning")
+    print(f"Using {sample_size} samples ({tuning_sample_size * 100:.1f}%) from train for tuning")
     print(f"Running {n_iterations} iterations with {n_warmup_epochs} epochs each...")
 
     best_params = None
@@ -139,6 +138,7 @@ def tune_hyperparameters(
     results = []
 
     for iteration in range(n_iterations):
+        print(f"Start {iteration + 1} iteration\n\n")
         # Случайная выборка гиперпараметров
         dropout = round(random.uniform(dropout_range[0], dropout_range[1]), 1)
 
@@ -184,7 +184,8 @@ def tune_hyperparameters(
         # Обучаем на маленькой выборке
         model.train()
         for epoch in range(n_warmup_epochs):
-            for batch in train_loader:
+            print(f"Start {epoch + 1} train epoch")
+            for batch in tqdm.tqdm(train_loader):
                 y = batch.pop("labels")
                 X = {k: v.to(device) for k, v in batch.items()}
                 y = y.to(device)
@@ -204,7 +205,8 @@ def tune_hyperparameters(
         val_labels = []
 
         with torch.no_grad():
-            for batch in val_loader:
+            print("Start validation")
+            for batch in tqdm.tqdm(val_loader):
                 y = batch.pop("labels")
                 X = {k: v.to(device) for k, v in batch.items()}
                 y = y.to(device)
@@ -232,9 +234,7 @@ def tune_hyperparameters(
         else:
             score = avg_val_loss
 
-        is_better = (
-            (score < best_score) if tuning_metric == "val_loss" else (score > best_score)
-        )
+        is_better = (score < best_score) if tuning_metric == "val_loss" else (score > best_score)
 
         results.append(
             {
@@ -257,7 +257,7 @@ def tune_hyperparameters(
             }
 
         print(
-            f"  [{iteration+1}/{n_iterations}] dropout={dropout:.1f}, lr={lr:.2e}, "
+            f"  [{iteration + 1}/{n_iterations}] dropout={dropout:.1f}, lr={lr:.2e}, "
             f"wd={weight_decay}, betas={betas} -> {tuning_metric}={score:.4f} "
             f"(best={best_score:.4f})"
         )
@@ -268,4 +268,3 @@ def tune_hyperparameters(
             torch.cuda.empty_cache()
 
     return best_params, results
-
