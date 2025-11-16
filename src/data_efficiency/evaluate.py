@@ -55,7 +55,7 @@ class Evaluator:
             raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
 
         print(f"Loading checkpoint from {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
 
         # Initialize model (freeze backbone for inference)
         self.model = ModernBert(
