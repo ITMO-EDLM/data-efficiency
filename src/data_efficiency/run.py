@@ -109,7 +109,7 @@ def main(
         backbone_name=config.model_name,
         num_classes=config.num_classes,
         dropout=config.dropout,
-        freeze_backbone=config.freeze_backbone,
+        unfreeze_layers=config.unfreeze_layers,
         use_pooler=config.use_pooler,
         use_float16=config.use_float16,
     )

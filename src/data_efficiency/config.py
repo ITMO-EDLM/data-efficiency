@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class TrainingConfig(BaseModel):
@@ -10,7 +10,12 @@ class TrainingConfig(BaseModel):
     model_name: str = "answerdotai/ModernBERT-base"
     num_classes: int = 2
     dropout: float = 0.2
-    freeze_backbone: bool = True
+    unfreeze_layers: Optional[int] = None  # Number of layers to unfreeze:
+    #   - None or 0: full backbone freezing (recommended for fine-tuning on small datasets)
+    #   - 1-3: unfreeze last 1-3 layers (good for similar domains)
+    #   - 4-6: unfreeze last 4-6 layers (for medium domain differences)
+    #   - 7-12: unfreeze most/all layers (for strongly different domains or large datasets)
+    #   - >= total_layers (usually 12 for ModernBERT-base): full backbone unfreezing
     use_pooler: bool = False
     use_float16: bool = False
 
@@ -35,9 +40,11 @@ class TrainingConfig(BaseModel):
     strategy_params: Dict = {}
 
     # Optimizer settings
+    # If separate lr is used, lr_head and lr_backbone will override lr
     optimizer_params: Dict = {"lr": 2e-5}
+    lr_head: Optional[float] = None  # Learning rate for head (classifier + dropout)
+    lr_backbone: Optional[float] = None  # Learning rate for backbone (if unfrozen)
 
-    # Metrics
     metrics: List[str] = ["accuracy", "f1"]
 
     # Logging and checkpoints
@@ -54,21 +61,46 @@ class TrainingConfig(BaseModel):
     clearml_task_name: Optional[str] = None
 
     # Hyperparameter tuning settings
-    enable_hyperparameter_tuning: bool = False  # Включить перебор гиперпараметров
-    warmup_epochs: int = 2  # Количество эпох для каждой итерации перебора
-    tuning_n_iterations: int = 25  # Количество случайных комбинаций для Random Search
-    tuning_sample_size: float = 0.15  # Доля train датасета для перебора (0.15 = 15%)
+    enable_hyperparameter_tuning: bool = False  # Enable hyperparameter search
+    warmup_epochs: int = 2  # Number of epochs for each search iteration
+    tuning_n_iterations: int = 25  # Number of random combinations for Random Search
+    tuning_sample_size: float = 0.15  # Fraction of train dataset for search (0.15 = 15%)
     tuning_metric: str = (
-        "val_loss"  # Метрика для выбора лучших параметров ("val_loss" или "val_accuracy")
+        "val_loss"  # Metric for selecting best parameters ("val_loss" or "val_accuracy")
     )
 
-    # Диапазоны для Random Search (опционально, есть дефолты)
-    batch_size_search_range: Optional[List[int]] = None  # [min, max] или None для автоопределения
+    # Ranges for Random Search (optional, defaults available)
+    batch_size_search_range: Optional[List[int]] = None  # [min, max] or None for auto-detection
     dropout_range: List[float] = Field([0.1, 0.5])
-    lr_range: List[float] = Field([1e-5, 1e-4])
+    lr_range: List[float] = Field(
+        [1e-5, 1e-4]
+    )  # Used if lr_head_range and lr_backbone_range are not specified
+    lr_head_range: Optional[List[float]] = None  # Learning rate range for head
+    lr_backbone_range: Optional[List[float]] = None  # Learning rate range for backbone
     weight_decay_options: Optional[List[float]] = Field([0.0, 0.01, 0.1])
-    betas_options: Optional[List[List[float]]] = Field([[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]]
+    betas_options: Optional[List[List[float]]] = Field([[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]])
+    unfreeze_layers_options: Optional[List[int]] = (
+        None  # Options for number of unfrozen layers to search
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_freeze_backbone_compatibility(cls, data):
+        """
+        Backward compatibility: converts freeze_backbone to unfreeze_layers.
+        If freeze_backbone is present in config, convert it:
+        - freeze_backbone=True -> unfreeze_layers=None (full freezing)
+        - freeze_backbone=False -> unfreeze_layers=12 (full unfreezing, assume 12 layers)
+        """
+        if isinstance(data, dict):
+            if "freeze_backbone" in data and "unfreeze_layers" not in data:
+                freeze_backbone = data.pop("freeze_backbone")
+                if freeze_backbone:
+                    data["unfreeze_layers"] = None
+                else:
+                    # Full unfreezing - use large number (>= 12 for ModernBERT-base)
+                    data["unfreeze_layers"] = 12
+        return data
 
 
 class EvaluationConfig(BaseModel):

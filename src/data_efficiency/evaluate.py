@@ -57,12 +57,12 @@ class Evaluator:
         print(f"Loading checkpoint from {checkpoint_path}")
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
 
-        # Initialize model
+        # Initialize model (freeze backbone for inference)
         self.model = ModernBert(
             backbone_name=self.config.model_name,
             num_classes=self.config.num_classes,
             dropout=self.config.dropout,
-            freeze_backbone=True,
+            unfreeze_layers=None,  # Full freezing for inference
             use_pooler=False,
             use_float16=False,
         )

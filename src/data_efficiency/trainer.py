@@ -19,6 +19,69 @@ from data_efficiency.utils.hyperparameter_tuning import (
 )
 
 
+def create_optimizer_with_different_lr(
+    model: ModernBert,
+    optimizer_params: Dict[str, Any],
+    lr_head: Optional[float] = None,
+    lr_backbone: Optional[float] = None,
+) -> AdamW:
+    """
+    Creates an optimizer with different learning rates for head and backbone.
+
+    Args:
+        model: ModernBert model
+        optimizer_params: Base optimizer parameters (weight_decay, betas, etc.)
+        lr_head: Learning rate for head (if None, uses lr from optimizer_params)
+        lr_backbone: Learning rate for backbone (if None, uses lr from optimizer_params)
+
+    Returns:
+        AdamW optimizer with parameter groups for head and backbone
+    """
+    # Base lr from optimizer_params
+    base_lr = optimizer_params.get("lr", 2e-5)
+
+    # Determine lr for head and backbone
+    head_lr = lr_head if lr_head is not None else base_lr
+    backbone_lr = lr_backbone if lr_backbone is not None else base_lr
+
+    # Get head and backbone parameters
+    head_params = model.get_head_params()
+    backbone_params = model.get_backbone_params()
+
+    # Create parameter groups
+    param_groups = []
+
+    # Group for head
+    if head_params:
+        head_group = {
+            "params": head_params,
+            "lr": head_lr,
+        }
+        # Copy remaining optimizer parameters (weight_decay, betas, etc.)
+        for key, value in optimizer_params.items():
+            if key != "lr":
+                head_group[key] = value
+        param_groups.append(head_group)
+
+    # Group for backbone
+    if backbone_params:
+        backbone_group = {
+            "params": backbone_params,
+            "lr": backbone_lr,
+        }
+        # Copy remaining optimizer parameters
+        for key, value in optimizer_params.items():
+            if key != "lr":
+                backbone_group[key] = value
+        param_groups.append(backbone_group)
+
+    # If no parameters with requires_grad=True, use all parameters with base lr
+    if not param_groups:
+        param_groups = [{"params": list(model.parameters()), **optimizer_params}]
+
+    return AdamW(param_groups)
+
+
 class Trainer:
     def __init__(
         self,
@@ -74,6 +137,10 @@ class Trainer:
         self.current_epoch = 0
         self.best_val_metric = None
 
+        # Extract lr_head and lr_backbone from config if present
+        self.lr_head = config.get("lr_head") if config else None
+        self.lr_backbone = config.get("lr_backbone") if config else None
+
         # Checkpoint management: list of (metric_value, epoch, path)
         # For loss metrics, lower is better; for accuracy/F1, higher is better
         self.saved_checkpoints: List[Tuple[float, int, Path]] = []
@@ -98,7 +165,13 @@ class Trainer:
             num_workers=self.num_workers,
             shuffle=False,
         )
-        self.optimizer = AdamW(list(self.model.parameters()), **self.optimizer_params)
+        # Create optimizer with different lr for head and backbone if specified
+        self.optimizer = create_optimizer_with_different_lr(
+            self.model,
+            self.optimizer_params,
+            lr_head=self.lr_head,
+            lr_backbone=self.lr_backbone,
+        )
         self.loss = get_loss(self.loss_type)
         self.model.to(self.device)
         self.tracker = MetricTracker(
@@ -322,14 +395,14 @@ class Trainer:
 
     def warmup(self) -> None:
         """
-        Перебор гиперпараметров перед основным обучением.
-        Работает только для стратегии "all".
+        Hyperparameter search before main training.
+        Only works for "all" strategy.
         """
         print("=" * 60)
         print("Starting Hyperparameter Tuning (Warmup)")
         print("=" * 60)
 
-        # 1. Определяем оптимальный batch size
+        # 1. Find optimal batch size
         print("\n[1/2] Finding optimal batch size...")
         optimal_batch_size = find_optimal_batch_size(
             self.model, self.train_dataset, self.device, initial_batch_size=self.batch_size
@@ -337,27 +410,36 @@ class Trainer:
         print(f"Optimal batch size: {optimal_batch_size}")
         self.batch_size = optimal_batch_size
 
-        # 2. Перебор гиперпараметров на маленькой выборке
+        # 2. Hyperparameter search on small sample
         print("\n[2/2] Tuning hyperparameters (Random Search)...")
 
-        # Подготавливаем параметры для перебора
+        # Prepare parameters for search
         tuning_config = self.config or {}
         dropout_range = tuple(tuning_config["dropout_range"])
         lr_range = tuple(tuning_config["lr_range"])
+        lr_head_range = (
+            tuple(tuning_config["lr_head_range"]) if tuning_config.get("lr_head_range") else None
+        )
+        lr_backbone_range = (
+            tuple(tuning_config["lr_backbone_range"])
+            if tuning_config.get("lr_backbone_range")
+            else None
+        )
         weight_decay_options = tuning_config["weight_decay_options"]
         betas_options_raw = tuning_config["betas_options"]
         betas_options = [tuple(b) for b in betas_options_raw]
+        unfreeze_layers_options = tuning_config.get("unfreeze_layers_options")
 
-        # Определяем num_classes из конфига или из модели
+        # Determine num_classes from config or model
         num_classes = tuning_config.get("num_classes")
         if num_classes is None:
-            # Пытаемся определить из размерности классификатора
+            # Try to determine from classifier output dimension
             num_classes = self.model.classifier.out_features
 
         model_config = {
             "model_name": self.model_name,
             "num_classes": num_classes,
-            "freeze_backbone": tuning_config.get("freeze_backbone", True),
+            "unfreeze_layers": tuning_config.get("unfreeze_layers"),
             "use_pooler": tuning_config.get("use_pooler", False),
             "use_float16": tuning_config.get("use_float16", False),
         }
@@ -376,8 +458,11 @@ class Trainer:
             tuning_sample_size=tuning_config.get("tuning_sample_size", 0.15),
             dropout_range=dropout_range,
             lr_range=lr_range,
+            lr_head_range=lr_head_range,
+            lr_backbone_range=lr_backbone_range,
             weight_decay_options=weight_decay_options,
             betas_options=betas_options,
+            unfreeze_layers_options=unfreeze_layers_options,
             tuning_metric=tuning_config.get("tuning_metric", "val_loss"),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -387,33 +472,53 @@ class Trainer:
 
         print("\nBest hyperparameters found:")
         print(f"  dropout: {best_params['dropout']}")
-        print(f"  lr: {best_params['lr']:.2e}")
+        print(f"  lr_head: {best_params.get('lr_head', best_params.get('lr', 'N/A')):.2e}")
+        if best_params.get("lr_backbone") is not None:
+            print(f"  lr_backbone: {best_params['lr_backbone']:.2e}")
+        if best_params.get("unfreeze_layers") is not None:
+            print(f"  unfreeze_layers: {best_params['unfreeze_layers']}")
         print(f"  weight_decay: {best_params['weight_decay']}")
         print(f"  betas: {best_params['betas']}")
 
-        # 3. Обновляем конфигурацию
+        # 3. Update configuration
+        # For backward compatibility
+        base_lr = best_params.get("lr_head", best_params.get("lr", 2e-5))
         self.optimizer_params = {
-            "lr": best_params["lr"],
+            "lr": base_lr,
             "weight_decay": best_params["weight_decay"],
             "betas": best_params["betas"],
         }
 
-        # 4. Пересоздаем модель с оптимальным dropout и сбрасываем веса
+        # Update lr_head and lr_backbone in config
+        if best_params.get("lr_head") is not None:
+            self.lr_head = best_params["lr_head"]
+        if best_params.get("lr_backbone") is not None:
+            self.lr_backbone = best_params["lr_backbone"]
+
+        # 4. Recreate model with optimal dropout and unfreeze_layers
         print("\nRecreating model with optimal dropout and resetting weights...")
         self.model = ModernBert(
             backbone_name=self.model_name,
             num_classes=model_config["num_classes"],
             dropout=best_params["dropout"],
-            freeze_backbone=model_config["freeze_backbone"],
+            unfreeze_layers=best_params.get("unfreeze_layers"),
             use_pooler=model_config["use_pooler"],
             use_float16=model_config["use_float16"],
         )
         self.model.to(self.device)
 
-        # 5. Пересоздаем оптимизатор с новыми параметрами
-        self.optimizer = AdamW(self.model.parameters(), **self.optimizer_params)
+        # 5. Recreate optimizer with new parameters
+        # Use lr_head and lr_backbone from best_params if available
+        best_lr_head = best_params.get("lr_head")
+        best_lr_backbone = best_params.get("lr_backbone")
+        self.optimizer = create_optimizer_with_different_lr(
+            self.model,
+            self.optimizer_params,
+            lr_head=best_lr_head,
+            lr_backbone=best_lr_backbone,
+        )
 
-        # 6. Обновляем round_scheduler с новым batch_size
+        # 6. Update round_scheduler with new batch_size
         self.round_scheduler = RoundScheduler(
             run_budget=self.run_budget,
             rounds_portions=self.round_portions,
@@ -424,7 +529,7 @@ class Trainer:
             num_workers=self.num_workers,
         )
 
-        # 7. Обновляем val_loader с новым batch_size
+        # 7. Update val_loader with new batch_size
         self.val_loader = build_dataloader(
             self.val_dataset,
             model_name=self.model_name,
