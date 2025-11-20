@@ -33,7 +33,7 @@
   "save_checkpoints": true,
   "max_checkpoints": 5,
   "checkpoint_metric": "val_loss",
-  "use_clearml": false,
+  "use_clearml": true,
   "clearml_project_name": "DataEfficiency",
   "clearml_task_name": null
 }
