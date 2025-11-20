@@ -37,6 +37,7 @@ Evaluate a trained model:
 ```bash
 uv run evaluate -c checkpoints/my_run/best/model.pt
 ```
+Add here path to config as `--config=my_filepath` if want to use custom model evaluation parameters.
 
 For more details on evaluation, see [EVALUATION_GUIDE.md](EVALUATION_GUIDE.md).
 
