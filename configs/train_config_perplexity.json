@@ -10,7 +10,7 @@
   "data_dir": "./data",
   "loss_type": "ce",
   "n_epochs": 1,
-  "device": "cpu",
+  "device": "cuda",
   "run_budget": 1.0,
   "rounds_portions": [
     1.0

@@ -1,5 +1,5 @@
-from data_efficiency.utils.data import build_dataloader, upload_dataset
-from data_efficiency.utils.evaluation import (
+from src.data_efficiency.utils.data import build_dataloader, upload_dataset
+from src.data_efficiency.utils.evaluation import (
     compute_confusion_matrix_data,
     compute_metrics,
     compute_pr_curve_data,
@@ -10,9 +10,9 @@ from data_efficiency.utils.evaluation import (
     save_metrics_to_csv,
     save_predictions_to_csv,
 )
-from data_efficiency.utils.loss import get_loss
-from data_efficiency.utils.metrics import accuracy, f1
-from data_efficiency.utils.tracker import MetricTracker
+from src.data_efficiency.utils.loss import get_loss
+from src.data_efficiency.utils.metrics import accuracy, f1
+from src.data_efficiency.utils.tracker import MetricTracker
 
 __all__ = [
     "accuracy",

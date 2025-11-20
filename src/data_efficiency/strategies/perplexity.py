@@ -38,8 +38,20 @@ class PerplexityDatasetSelectionStrategy(DataSelectionStrategy):
                     truncation=True,
                 ).to(self.device)
 
-                outputs = self.model(**inputs, labels=inputs["input_ids"])
-                batch_losses = outputs.loss.detach().cpu().tolist()
+                outputs = self.model(**inputs)
+                logits = outputs.logits  # shape: [batch_size, seq_len, vocab_size]
+
+                # Shift logits and labels for CrossEntropy
+                shift_logits = logits[..., :-1, :].contiguous()
+                shift_labels = inputs["input_ids"][..., 1:].contiguous()
+
+                loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
+                per_token_loss = loss_fct(
+                    shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
+                ).view(shift_labels.size())
+
+                # Average over tokens for each example
+                batch_losses = per_token_loss.mean(dim=1).detach().cpu().tolist()
                 losses.extend(batch_losses)
 
         # Lower loss → better perplexity
