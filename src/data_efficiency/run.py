@@ -4,10 +4,10 @@ from typing import Callable, Dict, Optional
 import click
 from dotenv import load_dotenv
 
-from data_efficiency.config import TrainingConfig
-from data_efficiency.model import ModernBert
-from data_efficiency.trainer import Trainer
-from data_efficiency.utils import accuracy, f1, upload_dataset
+from .config import TrainingConfig
+from .model import ModernBert
+from .trainer import Trainer
+from .utils import accuracy, f1, upload_dataset
 
 # Mapping from metric names to functions
 METRICS_MAP: Dict[str, Callable] = {

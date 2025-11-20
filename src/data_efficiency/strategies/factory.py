@@ -3,6 +3,7 @@ from typing import Any, Dict
 from data_efficiency.strategies.all import AllDatasetSelectionStrategy
 from data_efficiency.strategies.base import DataSelectionStrategy
 from data_efficiency.strategies.random import RandomDatasetSelectionStrategy
+from data_efficiency.strategies.perplexity import PerplexityDatasetSelectionStrategy
 
 
 def get_strategy(strategy_name: str, strategy_params: Dict[str, Any]) -> DataSelectionStrategy:
@@ -10,5 +11,7 @@ def get_strategy(strategy_name: str, strategy_params: Dict[str, Any]) -> DataSel
         return AllDatasetSelectionStrategy(**strategy_params)
     elif strategy_name == "random":
         return RandomDatasetSelectionStrategy(**strategy_params)
+    elif strategy_name == "perplexity":
+        return PerplexityDatasetSelectionStrategy(**strategy_params)
     else:
         raise ValueError(f"The {strategy_name} is not supported strategy type")
