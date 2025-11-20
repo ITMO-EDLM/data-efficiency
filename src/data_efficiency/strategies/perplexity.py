@@ -11,14 +11,13 @@ class PerplexityDatasetSelectionStrategy(DataSelectionStrategy):
     Selects examples by their per-token perplexity under a small language model:contentReference[oaicite:14]{index=14}.
     """
 
-    def __init__(self, batch_size: int = 32, device: str = None):
+    def __init__(self, batch_size: int = 32, device: str = None, model_name: str = "answerdotai/ModernBERT-base", num_workers: int = 4):
         # Load a small pre-trained model (e.g. GPT2) for scoring
-        self.tokenizer = AutoTokenizer.from_pretrained("answerdotai/ModernBERT-base")
-        self.model = ModernBertForMaskedLM.from_pretrained(
-            "answerdotai/ModernBERT-base"
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = ModernBertForMaskedLM.from_pretrained(model_name)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.batch_size = batch_size
+        self.num_workers = num_workers
 
         self.model.to(self.device)
         self.model.eval()

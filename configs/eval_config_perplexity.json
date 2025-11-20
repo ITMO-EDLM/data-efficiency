@@ -1,9 +1,9 @@
 {
-  "checkpoint_path": "./checkpoints/random_train_cutted_test_3epoch/best/model.pt",
+  "checkpoint_path": "./checkpoints/runpod_full_dataset_50epochs/best/model.pt",
   "model_name": "answerdotai/ModernBERT-base",
   "num_classes": 2,
   "dropout": 0.2,
-  "run_name": "random_train_cutted_test_3epoch_eval",
+  "run_name": "runpod_full_dataset_50epochs",
   "device": "cuda",
   "eval_splits": ["validation", "test"],
   "data_dir": "./data",
