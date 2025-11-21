@@ -1,15 +1,27 @@
 """Utility functions for computing embeddings and predictions from models."""
 
-from typing import Dict, List, Optional, Union
+from typing import Union
 
 import numpy as np
 import torch
 import tqdm
-from torch.utils.data import DataLoader
 
 from data_efficiency.data import TokenizedDataset
 from data_efficiency.model import ModernBert
 from data_efficiency.utils.data import build_dataloader
+
+# Configure TensorFloat32 (TF32) for better performance on Ampere+ GPUs
+# This enables faster float32 matrix multiplications without significant precision loss
+if torch.cuda.is_available():
+    # Use new API for PyTorch 2.9+
+    try:
+        torch.set_float32_matmul_precision("high")  # Enables TF32 for matmul
+    except AttributeError:
+        # Fallback for older PyTorch versions
+        if hasattr(torch.backends.cuda.matmul, "allow_tf32"):
+            torch.backends.cuda.matmul.allow_tf32 = True
+        if hasattr(torch.backends.cudnn, "allow_tf32"):
+            torch.backends.cudnn.allow_tf32 = True
 
 
 def get_embeddings(
@@ -48,7 +60,7 @@ def get_embeddings(
     embeddings_list = []
     with torch.no_grad():
         for batch in dataloader:
-            labels = batch.pop("labels")
+            _ = batch.pop("labels")  # Remove labels, not used for embeddings
             inputs = batch
             for k, v in inputs.items():
                 inputs[k] = v.to(device)
@@ -112,7 +124,7 @@ def get_predictions(
     with torch.no_grad():
         print("Start calculating predictions")
         for batch in tqdm.tqdm(dataloader):
-            labels = batch.pop("labels")
+            _ = batch.pop("labels")  # Remove labels, not used for predictions
             inputs = batch
             for k, v in inputs.items():
                 inputs[k] = v.to(device)
@@ -142,7 +154,7 @@ def compute_entropy(probs: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray,
     """
     # Avoid log(0) by adding small epsilon
     eps = 1e-10
-    
+
     if isinstance(probs, torch.Tensor):
         # GPU-optimized version using torch
         probs_clipped = torch.clamp(probs, min=eps, max=1.0 - eps)
