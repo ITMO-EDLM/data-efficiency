@@ -11,7 +11,7 @@
   "n_epochs": 30,
   "device": "cuda",
   "run_budget": 0.1,
-  "rounds_portions": [0.1, 0.12, 0.15, 0.18, 0.2, 0.25],
+  "rounds_portions": [0.2, 0.0, 0.0, 0.2, 0.0, 0.0, 0.2, 0.0, 0.0, 0.2, 0.0, 0.0, 0.2],
   "strategy_name": "lexical_diversity",
   "strategy_params": {
     "metric": "hdd"

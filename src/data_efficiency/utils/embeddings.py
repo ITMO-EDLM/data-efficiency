@@ -1,6 +1,6 @@
 """Utility functions for computing embeddings and predictions from models."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -19,7 +19,8 @@ def get_embeddings(
     model_name: str = "answerdotai/ModernBERT-base",
     batch_size: int = 64,
     num_workers: int = 4,
-) -> np.ndarray:
+    return_numpy: bool = False,
+) -> Union[torch.Tensor, np.ndarray]:
     """
     Compute embeddings for all samples in the dataset.
 
@@ -30,9 +31,10 @@ def get_embeddings(
         model_name: Model name for tokenizer
         batch_size: Batch size for processing
         num_workers: Number of workers for data loading
+        return_numpy: If True, return numpy array (CPU). If False, return torch tensor (on device).
 
     Returns:
-        Array of shape (n_samples, embedding_dim) with embeddings
+        Array/tensor of shape (n_samples, embedding_dim) with embeddings
     """
     model.eval()
     dataloader = build_dataloader(
@@ -62,9 +64,15 @@ def get_embeddings(
             else:
                 embeddings = output.last_hidden_state[:, 0]  # CLS token
 
-            embeddings_list.append(embeddings.cpu().numpy())
+            if return_numpy:
+                embeddings_list.append(embeddings.cpu().numpy())
+            else:
+                embeddings_list.append(embeddings)
 
-    return np.concatenate(embeddings_list, axis=0)
+    if return_numpy:
+        return np.concatenate(embeddings_list, axis=0)
+    else:
+        return torch.cat(embeddings_list, dim=0)
 
 
 def get_predictions(
@@ -74,7 +82,8 @@ def get_predictions(
     model_name: str = "answerdotai/ModernBERT-base",
     batch_size: int = 64,
     num_workers: int = 4,
-) -> np.ndarray:
+    return_numpy: bool = False,
+) -> Union[torch.Tensor, np.ndarray]:
     """
     Compute prediction probabilities for all samples in the dataset.
 
@@ -85,13 +94,14 @@ def get_predictions(
         model_name: Model name for tokenizer
         batch_size: Batch size for processing
         num_workers: Number of workers for data loading
+        return_numpy: If True, return numpy array (CPU). If False, return torch tensor (on device).
 
     Returns:
-        Array of shape (n_samples, n_classes) with prediction probabilities
+        Array/tensor of shape (n_samples, n_classes) with prediction probabilities
     """
     model.eval()
     dataloader = build_dataloader(
-        dataset.select(range(10)),
+        dataset,
         model_name=model_name,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -109,23 +119,74 @@ def get_predictions(
 
             logits = model(**inputs)
             probs = torch.softmax(logits, dim=1)
-            probs_list.append(probs.cpu().numpy())
+            if return_numpy:
+                probs_list.append(probs.cpu().numpy())
+            else:
+                probs_list.append(probs)
 
-    return np.concatenate(probs_list, axis=0)
+    if return_numpy:
+        return np.concatenate(probs_list, axis=0)
+    else:
+        return torch.cat(probs_list, dim=0)
 
 
-def compute_entropy(probs: np.ndarray) -> np.ndarray:
+def compute_entropy(probs: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
     """
     Compute entropy for each sample's prediction distribution.
 
     Args:
-        probs: Array of shape (n_samples, n_classes) with probabilities
+        probs: Array/tensor of shape (n_samples, n_classes) with probabilities
 
     Returns:
-        Array of shape (n_samples,) with entropy values
+        Array/tensor of shape (n_samples,) with entropy values
     """
     # Avoid log(0) by adding small epsilon
     eps = 1e-10
-    probs_clipped = np.clip(probs, eps, 1.0 - eps)
-    entropy = -np.sum(probs_clipped * np.log(probs_clipped), axis=1)
-    return entropy
+    
+    if isinstance(probs, torch.Tensor):
+        # GPU-optimized version using torch
+        probs_clipped = torch.clamp(probs, min=eps, max=1.0 - eps)
+        entropy = -torch.sum(probs_clipped * torch.log(probs_clipped), dim=1)
+        return entropy
+    else:
+        # CPU version using numpy (backward compatibility)
+        probs_clipped = np.clip(probs, eps, 1.0 - eps)
+        entropy = -np.sum(probs_clipped * np.log(probs_clipped), axis=1)
+        return entropy
+
+
+def compute_distances_gpu(
+    embeddings: torch.Tensor, selected: torch.Tensor
+) -> torch.Tensor:
+    """
+    Compute pairwise distances between all embeddings and selected embeddings on GPU.
+
+    Args:
+        embeddings: Tensor of shape (n_samples, embedding_dim) on GPU
+        selected: Tensor of shape (n_selected, embedding_dim) on GPU
+
+    Returns:
+        Tensor of shape (n_samples, n_selected) with pairwise distances
+    """
+    # Use torch.cdist for efficient batch distance computation
+    # p=2 means Euclidean distance
+    distances = torch.cdist(embeddings, selected, p=2)
+    return distances
+
+
+def compute_min_distances_gpu(
+    embeddings: torch.Tensor, selected: torch.Tensor
+) -> torch.Tensor:
+    """
+    Compute minimum distance from each embedding to any selected embedding on GPU.
+
+    Args:
+        embeddings: Tensor of shape (n_samples, embedding_dim) on GPU
+        selected: Tensor of shape (n_selected, embedding_dim) on GPU
+
+    Returns:
+        Tensor of shape (n_samples,) with minimum distances
+    """
+    distances = compute_distances_gpu(embeddings, selected)
+    min_distances = torch.min(distances, dim=1)[0]
+    return min_distances

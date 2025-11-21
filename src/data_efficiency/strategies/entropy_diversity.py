@@ -2,11 +2,16 @@
 
 from typing import List
 
-import numpy as np
+import torch
 
 from data_efficiency.data import TokenizedDataset
 from data_efficiency.strategies.base import DataSelectionStrategy
-from data_efficiency.utils.embeddings import compute_entropy, get_embeddings, get_predictions
+from data_efficiency.utils.embeddings import (
+    compute_entropy,
+    compute_min_distances_gpu,
+    get_embeddings,
+    get_predictions,
+)
 
 
 class EntropyDiversityStrategy(DataSelectionStrategy):
@@ -65,7 +70,7 @@ class EntropyDiversityStrategy(DataSelectionStrategy):
         if limit >= n_samples:
             return list(range(n_samples))
 
-        # Compute predictions and embeddings
+        # Compute predictions and embeddings (keep on GPU)
         probs = get_predictions(
             model,
             dataset,
@@ -73,6 +78,7 @@ class EntropyDiversityStrategy(DataSelectionStrategy):
             model_name=self.model_name,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            return_numpy=False,  # Keep as torch tensor on GPU
         )
         embeddings = get_embeddings(
             model,
@@ -81,29 +87,46 @@ class EntropyDiversityStrategy(DataSelectionStrategy):
             model_name=self.model_name,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            return_numpy=False,  # Keep as torch tensor on GPU
         )
 
-        # Compute entropy for all samples
-        entropy = compute_entropy(probs)
+        # Compute entropy for all samples (on GPU)
+        entropy = compute_entropy(probs)  # Returns torch tensor
 
         # Sort indices by entropy (descending)
-        sorted_indices = np.argsort(entropy)[::-1]
+        sorted_indices = torch.argsort(entropy, descending=True).cpu().numpy()
 
         selected_indices = []
-        for idx in sorted_indices:
-            if len(selected_indices) >= limit:
-                break
+        remaining_candidates = list(sorted_indices)
 
+        while len(selected_indices) < limit and len(remaining_candidates) > 0:
             if len(selected_indices) == 0:
                 # First sample: always add
-                selected_indices.append(int(idx))
+                selected_indices.append(int(remaining_candidates[0]))
+                remaining_candidates.pop(0)
             else:
-                # Check diversity constraint: min distance to selected samples > threshold
-                selected_embeddings = embeddings[selected_indices]
-                distances = np.linalg.norm(embeddings[idx] - selected_embeddings, axis=1)
-                min_dist = np.min(distances)
+                # Get embeddings for selected and all remaining candidate samples
+                selected_embeddings = embeddings[selected_indices]  # Shape: (n_selected, dim)
+                candidate_embeddings = embeddings[
+                    remaining_candidates
+                ]  # Shape: (n_candidates, dim)
 
-                if min_dist > self.threshold:
-                    selected_indices.append(int(idx))
+                # Compute minimum distances for all candidates at once (GPU-accelerated)
+                min_distances = compute_min_distances_gpu(
+                    candidate_embeddings, selected_embeddings
+                )  # Shape: (n_candidates,)
+
+                # Find first candidate that satisfies threshold
+                valid_mask = min_distances > self.threshold
+                valid_indices = torch.where(valid_mask)[0]
+
+                if len(valid_indices) > 0:
+                    # Take first valid candidate (they're already sorted by entropy)
+                    candidate_idx = valid_indices[0].item()
+                    selected_indices.append(int(remaining_candidates[candidate_idx]))
+                    remaining_candidates.pop(candidate_idx)
+                else:
+                    # No more candidates satisfy the threshold, break
+                    break
 
         return selected_indices

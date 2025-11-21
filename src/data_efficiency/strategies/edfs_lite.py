@@ -2,7 +2,7 @@
 
 from typing import List, Tuple
 
-import numpy as np
+import torch
 
 from data_efficiency.data import TokenizedDataset
 from data_efficiency.strategies.base import DataSelectionStrategy
@@ -65,7 +65,7 @@ class EDFSLiteStrategy(DataSelectionStrategy):
         Returns:
             Tuple of (easy_indices, medium_indices, hard_indices)
         """
-        # Compute predictions and entropy
+        # Compute predictions and entropy (on GPU)
         probs = get_predictions(
             model,
             dataset,
@@ -73,12 +73,14 @@ class EDFSLiteStrategy(DataSelectionStrategy):
             model_name=self.model_name,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            return_numpy=False,  # Keep as torch tensor on GPU
         )
-        entropy = compute_entropy(probs)
+        entropy = compute_entropy(probs)  # Returns torch tensor
 
         # Split by quantiles: low entropy = easy, high entropy = hard
         n_samples = len(dataset)
-        sorted_indices = np.argsort(entropy)
+        # Sort on GPU, then convert to numpy for indexing
+        sorted_indices = torch.argsort(entropy).cpu().numpy()
 
         # Define quantile boundaries
         easy_boundary = int(n_samples * (1.0 / 3.0))

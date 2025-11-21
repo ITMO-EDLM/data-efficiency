@@ -3,11 +3,14 @@
 import random
 from typing import List
 
-import numpy as np
+import torch
 
 from data_efficiency.data import TokenizedDataset
 from data_efficiency.strategies.base import DataSelectionStrategy
-from data_efficiency.utils.embeddings import get_embeddings
+from data_efficiency.utils.embeddings import (
+    compute_min_distances_gpu,
+    get_embeddings,
+)
 
 
 class KCenterGreedyStrategy(DataSelectionStrategy):
@@ -62,7 +65,7 @@ class KCenterGreedyStrategy(DataSelectionStrategy):
         if limit >= n_samples:
             return list(range(n_samples))
 
-        # Compute embeddings for all samples
+        # Compute embeddings for all samples (keep on GPU)
         embeddings = get_embeddings(
             model,
             dataset,
@@ -70,39 +73,32 @@ class KCenterGreedyStrategy(DataSelectionStrategy):
             model_name=self.model_name,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            return_numpy=False,  # Keep as torch tensor on GPU
         )
 
         # Initialize: randomly select first sample
         selected_indices = [random.randint(0, n_samples - 1)]
-        remaining_indices = set(range(n_samples)) - set(selected_indices)
+        remaining_indices = list(set(range(n_samples)) - set(selected_indices))
 
         # Iteratively add samples that maximize minimum distance
         while len(selected_indices) < limit:
-            selected_embeddings = embeddings[selected_indices]
+            if len(remaining_indices) == 0:
+                break
 
-            # For each remaining sample, compute minimum distance to selected samples
-            max_min_dist = -1
-            best_idx = None
+            # Get embeddings for selected and remaining samples
+            selected_embeddings = embeddings[selected_indices]  # Shape: (n_selected, dim)
+            remaining_embeddings = embeddings[remaining_indices]  # Shape: (n_remaining, dim)
 
-            for idx in remaining_indices:
-                # Compute distance to all selected samples
-                distances = np.linalg.norm(embeddings[idx] - selected_embeddings, axis=1)
-                min_dist = np.min(distances)
+            # Compute minimum distances for all remaining samples at once (GPU-accelerated)
+            min_distances = compute_min_distances_gpu(
+                remaining_embeddings, selected_embeddings
+            )  # Shape: (n_remaining,)
 
-                if min_dist > max_min_dist:
-                    max_min_dist = min_dist
-                    best_idx = idx
+            # Find the index with maximum minimum distance
+            max_min_dist_idx = torch.argmax(min_distances).item()
+            best_idx = remaining_indices[max_min_dist_idx]
 
-            if best_idx is not None:
-                selected_indices.append(best_idx)
-                remaining_indices.remove(best_idx)
-            else:
-                # Fallback: add random sample if no improvement found
-                if remaining_indices:
-                    random_idx = random.choice(list(remaining_indices))
-                    selected_indices.append(random_idx)
-                    remaining_indices.remove(random_idx)
-                else:
-                    break
+            selected_indices.append(best_idx)
+            remaining_indices.remove(best_idx)
 
         return selected_indices
