@@ -1,9 +1,9 @@
 {
-  "checkpoint_path": "./checkpoints/perplexity_30epochs/best/model.pt",
+  "checkpoint_path": "./checkpoints/ifd_30epochs/best/model.pt",
   "model_name": "answerdotai/ModernBERT-base",
   "num_classes": 2,
   "dropout": 0.2,
-  "run_name": "perplexity_30epochs",
+  "run_name": "ifd_30epochs",
   "device": "cuda",
   "eval_splits": [
     "validation",

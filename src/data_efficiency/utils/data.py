@@ -49,7 +49,8 @@ def download_dataset(
     if "validation" in tokenized_dataset:
         test_split = tokenized_dataset["validation"]
         test_split.set_format(
-            type="torch", columns=["sentence", "input_ids", "attention_mask", "label", "idx"]
+            type="torch",
+            columns=["sentence", "input_ids", "attention_mask", "label", "idx"],
         )
         test_split.save_to_disk(Path(data_dir, "test"))
         print(f"Saved test split: {len(test_split)} samples")
@@ -94,7 +95,8 @@ def download_dataset(
         # Create validation split
         validation_split = train_split.select(validation_indices)
         validation_split.set_format(
-            type="torch", columns=["sentence", "input_ids", "attention_mask", "label", "idx"]
+            type="torch",
+            columns=["sentence", "input_ids", "attention_mask", "label", "idx"],
         )
         validation_split.save_to_disk(Path(data_dir, "validation"))
         print(f"Saved validation split: {len(validation_split)} samples")
@@ -102,7 +104,8 @@ def download_dataset(
         # Create remaining train split
         train_remaining = train_split.select(train_indices)
         train_remaining.set_format(
-            type="torch", columns=["sentence", "input_ids", "attention_mask", "label", "idx"]
+            type="torch",
+            columns=["sentence", "input_ids", "attention_mask", "label", "idx"],
         )
         train_remaining.save_to_disk(Path(data_dir, "train"))
         print(f"Saved train split: {len(train_remaining)} samples")
@@ -142,7 +145,9 @@ class CustomCollator:
         model_feats = []
         for f in features:
             d = {
-                k: f[k] for k in f.keys() if k in ("input_ids", "attention_mask", "token_type_ids")
+                k: f[k]
+                for k in f.keys()
+                if k in ("input_ids", "attention_mask", "token_type_ids")
             }
             model_feats.append(d)
 

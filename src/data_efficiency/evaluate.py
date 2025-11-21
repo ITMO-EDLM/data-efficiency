@@ -55,7 +55,9 @@ class Evaluator:
             raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
 
         print(f"Loading checkpoint from {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+        checkpoint = torch.load(
+            checkpoint_path, map_location=self.device, weights_only=False
+        )
 
         # Initialize model (freeze backbone for inference)
         self.model = ModernBert(
@@ -89,7 +91,9 @@ class Evaluator:
         print(f"\nEvaluating on {split_name} set...")
 
         # Load dataset
-        dataset = TokenizedDataset(upload_dataset(split_name, data_dir=self.config.data_dir))
+        dataset = TokenizedDataset(
+            upload_dataset(split_name, data_dir=self.config.data_dir)
+        )
         dataloader = build_dataloader(
             dataset,
             model_name=self.config.model_name,
@@ -181,7 +185,9 @@ class Evaluator:
         # PR Curve (for binary classification)
         if self.config.compute_pr_curve and y_probs.shape[1] == 2:
             precision, recall, ap_score = compute_pr_curve_data(y_true, y_probs[:, 1])
-            plot_pr_curve(precision, recall, ap_score, save_path=split_dir / "pr_curve.png")
+            plot_pr_curve(
+                precision, recall, ap_score, save_path=split_dir / "pr_curve.png"
+            )
 
         # Save predictions if requested
         if self.config.save_predictions:

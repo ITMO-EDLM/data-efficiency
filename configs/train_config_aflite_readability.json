@@ -19,10 +19,13 @@
     0.2,
     0.25
   ],
-  "strategy_name": "perplexity",
+  "strategy_name": "aflite_readability",
   "strategy_params": {
     "model_name": "answerdotai/ModernBERT-base",
-    "batch_size": 64
+    "batch_size": 64,
+    "n_runs": 5,
+    "train_size": 0.8,
+    "seed": 42
   },
   "optimizer_params": {
     "lr": 2.285109610939014e-05,
@@ -39,7 +42,7 @@
     "f1"
   ],
   "log_dir": "./runs",
-  "run_name": "perplexity_30epochs",
+  "run_name": "aflite_readability_30epochs",
   "checkpoint_dir": "./checkpoints",
   "save_checkpoints": true,
   "max_checkpoints": 5,

@@ -19,7 +19,7 @@
     0.2,
     0.25
   ],
-  "strategy_name": "perplexity",
+  "strategy_name": "el2n",
   "strategy_params": {
     "model_name": "answerdotai/ModernBERT-base",
     "batch_size": 64
@@ -39,7 +39,7 @@
     "f1"
   ],
   "log_dir": "./runs",
-  "run_name": "perplexity_30epochs",
+  "run_name": "el2n_30epochs",
   "checkpoint_dir": "./checkpoints",
   "save_checkpoints": true,
   "max_checkpoints": 5,

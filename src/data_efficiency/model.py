@@ -54,7 +54,9 @@ class ModernBert(nn.Module):
         else:
             # Determine total number of layers
             total_layers = None
-            if hasattr(self.backbone, "encoder") and hasattr(self.backbone.encoder, "layers"):
+            if hasattr(self.backbone, "encoder") and hasattr(
+                self.backbone.encoder, "layers"
+            ):
                 total_layers = len(self.backbone.encoder.layers)
 
             if total_layers is not None and unfreeze_layers >= total_layers:
@@ -127,5 +129,7 @@ if __name__ == "__main__":
     assert all([p.requires_grad is False for p in model.backbone.parameters()])
 
     # Test with full unfreezing (12 layers for ModernBERT-base)
-    model_unfrozen = ModernBert(model_name, 2, 0.2, unfreeze_layers=12, use_float16=False)
+    model_unfrozen = ModernBert(
+        model_name, 2, 0.2, unfreeze_layers=12, use_float16=False
+    )
     assert any([p.requires_grad is True for p in model_unfrozen.backbone.parameters()])

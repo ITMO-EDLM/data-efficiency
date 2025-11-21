@@ -144,8 +144,12 @@ def plot_roc_curve(
         save_path: Path to save the plot
     """
     plt.figure(figsize=(8, 6))
-    plt.plot(fpr, tpr, color="darkorange", lw=2, label=f"ROC curve (AUC = {auc_score:.3f})")
-    plt.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--", label="Random classifier")
+    plt.plot(
+        fpr, tpr, color="darkorange", lw=2, label=f"ROC curve (AUC = {auc_score:.3f})"
+    )
+    plt.plot(
+        [0, 1], [0, 1], color="navy", lw=2, linestyle="--", label="Random classifier"
+    )
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel("False Positive Rate")
@@ -195,7 +199,13 @@ def plot_pr_curve(
         save_path: Path to save the plot
     """
     plt.figure(figsize=(8, 6))
-    plt.plot(recall, precision, color="darkorange", lw=2, label=f"PR curve (AP = {ap_score:.3f})")
+    plt.plot(
+        recall,
+        precision,
+        color="darkorange",
+        lw=2,
+        label=f"PR curve (AP = {ap_score:.3f})",
+    )
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel("Recall")

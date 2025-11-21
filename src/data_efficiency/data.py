@@ -26,6 +26,9 @@ if __name__ == "__main__":
     rand_item = dataset[rand_idx]
     assert isinstance(rand_item, dict)
     assert all(
-        [isinstance(value, torch.Tensor) or isinstance(value, str) for value in rand_item.values()]
+        [
+            isinstance(value, torch.Tensor) or isinstance(value, str)
+            for value in rand_item.values()
+        ]
     )
     print(rand_item)

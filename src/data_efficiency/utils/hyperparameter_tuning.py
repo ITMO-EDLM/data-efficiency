@@ -36,7 +36,9 @@ def find_optimal_batch_size(
     max_batch = initial_batch_size * 8
     optimal_batch = initial_batch_size
 
-    print(f"Searching for optimal batch size (initial: {initial_batch_size}, max: {max_batch})...")
+    print(
+        f"Searching for optimal batch size (initial: {initial_batch_size}, max: {max_batch})..."
+    )
 
     for _ in tqdm.tqdm(range(max_iterations)):
         if max_batch - min_batch < 2:
@@ -94,7 +96,11 @@ def tune_hyperparameters(
     lr_head_range: Optional[Tuple[float, float]] = None,
     lr_backbone_range: Optional[Tuple[float, float]] = None,
     weight_decay_options: List[float] = [0.0, 0.01, 0.1],  # noqa: B006
-    betas_options: List[Tuple[float, float]] = [(0.9, 0.999), (0.95, 0.999), (0.9, 0.99)],  # noqa: B006
+    betas_options: List[Tuple[float, float]] = [
+        (0.9, 0.999),
+        (0.95, 0.999),
+        (0.9, 0.99),
+    ],  # noqa: B006
     unfreeze_layers_options: Optional[List[int]] = None,
     tuning_metric: str = "val_loss",
     batch_size: int = 64,
@@ -138,7 +144,9 @@ def tune_hyperparameters(
     sample_indices = random.sample(range(train_size), sample_size)
     tuning_train_dataset = train_dataset.select(sample_indices)
 
-    print(f"Using {sample_size} samples ({tuning_sample_size * 100:.1f}%) from train for tuning")
+    print(
+        f"Using {sample_size} samples ({tuning_sample_size * 100:.1f}%) from train for tuning"
+    )
     print(f"Running {n_iterations} iterations with {n_warmup_epochs} epochs each...")
 
     best_params = None
@@ -201,7 +209,9 @@ def tune_hyperparameters(
             model,
             optimizer_params,
             lr_head=lr_head,
-            lr_backbone=lr_backbone if unfreeze_layers and unfreeze_layers > 0 else None,
+            lr_backbone=(
+                lr_backbone if unfreeze_layers and unfreeze_layers > 0 else None
+            ),
         )
         loss_fn = get_loss(loss_type)
 
@@ -274,12 +284,18 @@ def tune_hyperparameters(
         else:
             score = avg_val_loss
 
-        is_better = (score < best_score) if tuning_metric == "val_loss" else (score > best_score)
+        is_better = (
+            (score < best_score)
+            if tuning_metric == "val_loss"
+            else (score > best_score)
+        )
 
         result_dict = {
             "dropout": dropout,
             "lr_head": lr_head,
-            "lr_backbone": lr_backbone if unfreeze_layers and unfreeze_layers > 0 else None,
+            "lr_backbone": (
+                lr_backbone if unfreeze_layers and unfreeze_layers > 0 else None
+            ),
             "unfreeze_layers": unfreeze_layers,
             "weight_decay": weight_decay,
             "betas": betas,
@@ -293,13 +309,17 @@ def tune_hyperparameters(
             best_params = {
                 "dropout": dropout,
                 "lr_head": lr_head,
-                "lr_backbone": lr_backbone if unfreeze_layers and unfreeze_layers > 0 else None,
+                "lr_backbone": (
+                    lr_backbone if unfreeze_layers and unfreeze_layers > 0 else None
+                ),
                 "unfreeze_layers": unfreeze_layers,
                 "weight_decay": weight_decay,
                 "betas": betas,
             }
 
-        unfreeze_info = f", unfreeze_layers={unfreeze_layers}" if unfreeze_layers else ""
+        unfreeze_info = (
+            f", unfreeze_layers={unfreeze_layers}" if unfreeze_layers else ""
+        )
         lr_info = f"lr_head={lr_head:.2e}"
         if unfreeze_layers and unfreeze_layers > 0:
             lr_info += f", lr_backbone={lr_backbone:.2e}"

@@ -64,13 +64,17 @@ class TrainingConfig(BaseModel):
     enable_hyperparameter_tuning: bool = False  # Enable hyperparameter search
     warmup_epochs: int = 2  # Number of epochs for each search iteration
     tuning_n_iterations: int = 25  # Number of random combinations for Random Search
-    tuning_sample_size: float = 0.15  # Fraction of train dataset for search (0.15 = 15%)
+    tuning_sample_size: float = (
+        0.15  # Fraction of train dataset for search (0.15 = 15%)
+    )
     tuning_metric: str = (
         "val_loss"  # Metric for selecting best parameters ("val_loss" or "val_accuracy")
     )
 
     # Ranges for Random Search (optional, defaults available)
-    batch_size_search_range: Optional[List[int]] = None  # [min, max] or None for auto-detection
+    batch_size_search_range: Optional[List[int]] = (
+        None  # [min, max] or None for auto-detection
+    )
     dropout_range: List[float] = Field([0.1, 0.5])
     lr_range: List[float] = Field(
         [1e-5, 1e-4]
@@ -78,7 +82,9 @@ class TrainingConfig(BaseModel):
     lr_head_range: Optional[List[float]] = None  # Learning rate range for head
     lr_backbone_range: Optional[List[float]] = None  # Learning rate range for backbone
     weight_decay_options: Optional[List[float]] = Field([0.0, 0.01, 0.1])
-    betas_options: Optional[List[List[float]]] = Field([[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]])
+    betas_options: Optional[List[List[float]]] = Field(
+        [[0.9, 0.999], [0.95, 0.999], [0.9, 0.99]]
+    )
     unfreeze_layers_options: Optional[List[int]] = (
         None  # Options for number of unfrozen layers to search
     )
