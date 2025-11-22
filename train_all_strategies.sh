@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/sh
 
 # Script to sequentially run training with all data efficiency strategy configs
 # Usage: ./train_all_strategies.sh
