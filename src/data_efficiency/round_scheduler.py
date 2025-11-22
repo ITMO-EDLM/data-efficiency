@@ -66,11 +66,13 @@ class RoundScheduler:
             shuffle=True,
         )
 
-    def get_train_dataloader(self, **kwargs) -> DataLoader:
+    def get_train_dataloader(self, model=None, device: str = "cpu", **kwargs) -> DataLoader:
         limit = self._calculate_limit()
         if self.is_reached_budget:
             return self.full_dataloader
         else:
-            selected_idxs = self.strategy.select(self.dataset, limit, **kwargs)
+            # Pass model and device to strategy
+            strategy_kwargs = {**kwargs, "model": model, "device": device}
+            selected_idxs = self.strategy.select(self.dataset, limit, **strategy_kwargs)
             self._update_statistics(selected_idxs)
             return self._prepare_dataloader()

@@ -312,7 +312,7 @@ class Trainer:
             self.tracker.current_epoch = self.current_epoch
 
             print(f"Start {self.current_epoch} epoch")
-            train_loader = self.round_scheduler.get_train_dataloader()
+            train_loader = self.round_scheduler.get_train_dataloader(model=self.model, device=self.device)
             self._train_step(train_loader)
             self._val_step(self.val_loader)
 
