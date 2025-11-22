@@ -15,7 +15,7 @@
   "strategy_name": "edfs_lite",
   "strategy_params": {
     "easy_portion": 0.4,
-    "medium_portion": 0.2,
+    "medium_portion": 0.4,
     "hard_portion": 0.2,
     "model_name": "answerdotai/ModernBERT-base",
     "batch_size": 64,
