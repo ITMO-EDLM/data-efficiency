@@ -266,7 +266,7 @@ class Evaluator:
     "--device",
     "-d",
     type=str,
-    default="mps",
+    default="cuda",
     help="Device to use (cpu, cuda, mps)",
 )
 @click.option(
