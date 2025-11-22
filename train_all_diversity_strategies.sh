@@ -54,6 +54,10 @@ CONFIGS=(
     "configs/train_config_k_center.json"
     "configs/train_config_lexical_diversity.json"
     "configs/train_config_qdit_lite.json"
+    "train_config_aflite_readability.json"
+    "train_config_el2n.json"
+    "train_config_ifd.json"
+    "train_config_perplexity.json"
 )
 
 # 6. Run training for each config
@@ -66,25 +70,25 @@ CURRENT=0
 
 for CONFIG_FILE in "${CONFIGS[@]}"; do
     CURRENT=$((CURRENT + 1))
-    
+
     # Check if config exists
     if [ ! -f "$CONFIG_FILE" ]; then
         echo "⚠ Warning: Config $CONFIG_FILE not found. Skipping..."
         continue
     fi
-    
+
     # Extract strategy name from config file
     STRATEGY_NAME=$(basename "$CONFIG_FILE" .json | sed 's/train_config_//')
-    
+
     echo ""
     echo "----------------------------------------"
     echo "[$CURRENT/$TOTAL] Running: $STRATEGY_NAME"
     echo "Config: $CONFIG_FILE"
     echo "----------------------------------------"
-    
+
     # Run training
     uv run run --config "$CONFIG_FILE"
-    
+
     echo ""
     echo "✓ Completed: $STRATEGY_NAME"
 done

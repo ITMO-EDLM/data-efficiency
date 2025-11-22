@@ -5,7 +5,7 @@ from data_efficiency.strategies.base import DataSelectionStrategy
 
 
 class RandomDatasetSelectionStrategy(DataSelectionStrategy):
-    def select(self, dataset: TokenizedDataset, limit: int, **strategy_kwargs):
+    def select(self, dataset: TokenizedDataset, limit: int, **kwargs):
         """
         Return random dataset limit size.
 

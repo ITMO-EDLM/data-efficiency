@@ -3,7 +3,7 @@ from data_efficiency.strategies.base import DataSelectionStrategy
 
 
 class AllDatasetSelectionStrategy(DataSelectionStrategy):
-    def select(self, dataset: TokenizedDataset, limit: int):
+    def select(self, dataset: TokenizedDataset, limit: int, **kwargs):
         """
         Return all provided dataset. Backward for training model on full dataset.
 

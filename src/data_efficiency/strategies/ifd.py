@@ -65,7 +65,7 @@ class IFDDatasetSelectionStrategy(DataSelectionStrategy):
                 losses.extend(batch_losses)
         return losses
 
-    def select(self, dataset: TokenizedDataset, limit: int) -> List[int]:
+    def select(self, dataset: TokenizedDataset, limit: int, **kwargs) -> List[int]:
         n = len(dataset)
 
         # 1. Prepare Data

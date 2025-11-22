@@ -26,7 +26,7 @@ class PerplexityDatasetSelectionStrategy(DataSelectionStrategy):
         self.model.to(self.device)
         self.model.eval()
 
-    def select(self, dataset: TokenizedDataset, limit: int) -> List[int]:
+    def select(self, dataset: TokenizedDataset, limit: int, **kwargs) -> List[int]:
         texts = [dataset[i]["sentence"] for i in range(len(dataset))]
 
         losses = []

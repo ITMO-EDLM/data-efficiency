@@ -44,7 +44,7 @@ class AFLiteReadabilityDatasetSelectionStrategy(DataSelectionStrategy):
         self.model.to(self.device)
         self.model.eval()
 
-    def select(self, dataset: TokenizedDataset, limit: int) -> List[int]:
+    def select(self, dataset: TokenizedDataset, limit: int, **kwargs) -> List[int]:
         n = len(dataset)
 
         # --- 1. Readability Score ---
