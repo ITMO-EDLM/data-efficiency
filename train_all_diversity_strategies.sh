@@ -54,10 +54,10 @@ CONFIGS=(
     "configs/train_config_k_center.json"
     "configs/train_config_lexical_diversity.json"
     "configs/train_config_qdit_lite.json"
-    "train_config_aflite_readability.json"
-    "train_config_el2n.json"
-    "train_config_ifd.json"
-    "train_config_perplexity.json"
+    "configs/train_config_aflite_readability.json"
+    "configs/train_config_el2n.json"
+    "configs/train_config_ifd.json"
+    "configs/train_config_perplexity.json"
 )
 
 # 6. Run training for each config
