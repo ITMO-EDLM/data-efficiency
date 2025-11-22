@@ -1,5 +1,5 @@
 {
-  "checkpoint_path": "./checkpoints/random_train_cutted_test_3epoch_v2/best/model.pt",
+  "checkpoint_path": "./checkpoints/random_strategy/best/model.pt",
   "model_name": "answerdotai/ModernBERT-base",
   "num_classes": 2,
   "dropout": 0.2,
