@@ -15,12 +15,13 @@
 
 ```bash
 uv sync
+source .venv/bin/activate
 ```
 
 ### Download Dataset
 
 ```bash
-download_dataset
+uv run download_dataset
 ```
 
 ### Training
@@ -28,14 +29,16 @@ download_dataset
 ```bash
 python -m data_efficiency.run
 ```
+Add here path to config as `--config=my_filepath` if want to use custom model training or data selection parameters.
 
 ### Evaluation
 
 Evaluate a trained model:
 
 ```bash
-evaluate -c checkpoints/my_run/best/model.pt
+uv run evaluate -c checkpoints/my_run/best/model.pt
 ```
+Add here path to config as `--config=my_filepath` if want to use custom model evaluation parameters.
 
 For more details on evaluation, see [EVALUATION_GUIDE.md](EVALUATION_GUIDE.md).
 

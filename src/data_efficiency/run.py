@@ -119,9 +119,13 @@ def main(
     train_dataset = upload_dataset("train", data_dir=config.data_dir)
 
     # Build metrics dictionary
-    metrics_fn = {name: METRICS_MAP[name] for name in config.metrics if name in METRICS_MAP}
+    metrics_fn = {
+        name: METRICS_MAP[name] for name in config.metrics if name in METRICS_MAP
+    }
     if not metrics_fn:
-        raise ValueError(f"No valid metrics found. Available: {list(METRICS_MAP.keys())}")
+        raise ValueError(
+            f"No valid metrics found. Available: {list(METRICS_MAP.keys())}"
+        )
 
     # Convert config to dictionary for ClearML logging
     config_dict = config.model_dump()

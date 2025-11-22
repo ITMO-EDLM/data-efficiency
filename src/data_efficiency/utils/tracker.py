@@ -62,17 +62,23 @@ class MetricTracker:
         self.clearml_task = None
         if use_clearml:
             if Task is None:
-                print("Warning: ClearML is not installed. Install it with: pip install clearml")
+                print(
+                    "Warning: ClearML is not installed. Install it with: pip install clearml"
+                )
             else:
                 try:
                     # ClearML reads credentials from environment variables automatically
                     # CLEARML_API_ACCESS_KEY and CLEARML_API_SECRET_KEY
                     project_name = clearml_project_name or "DataEfficiency"
                     task_name = (
-                        clearml_task_name or run_name or datetime.now().strftime("%Y%m%d_%H%M%S")
+                        clearml_task_name
+                        or run_name
+                        or datetime.now().strftime("%Y%m%d_%H%M%S")
                     )
 
-                    self.clearml_task = Task.init(project_name=project_name, task_name=task_name)
+                    self.clearml_task = Task.init(
+                        project_name=project_name, task_name=task_name
+                    )
                     print(f"ClearML task initialized: {project_name}/{task_name}")
                 except Exception as e:
                     print(f"Warning: Failed to initialize ClearML task: {e}")
@@ -93,7 +99,10 @@ class MetricTracker:
         # Log to ClearML
         if self.clearml_task:
             self.clearml_task.get_logger().report_scalar(
-                title="train", series="loss", value=loss_value, iteration=self.train_step
+                title="train",
+                series="loss",
+                value=loss_value,
+                iteration=self.train_step,
             )
 
     def save_vall_loss(self, loss: torch.Tensor) -> None:
@@ -110,37 +119,55 @@ class MetricTracker:
                 title="val", series="loss", value=loss_value, iteration=self.val_step
             )
 
-    def save_train_metrics(self, probs: np.ndarray, preds: np.ndarray, gt: np.ndarray) -> None:
+    def save_train_metrics(
+        self, probs: np.ndarray, preds: np.ndarray, gt: np.ndarray
+    ) -> None:
         for metric_name, metric_fn in self.metrics_fn.items():
             metric_value = metric_fn(probs, preds, gt)
-            self.train_metrics_history[self.current_epoch][metric_name].append(metric_value)
+            self.train_metrics_history[self.current_epoch][metric_name].append(
+                metric_value
+            )
 
             # Log to TensorBoard
             if self.writer:
-                self.writer.add_scalar(f"train/{metric_name}", metric_value, self.train_step)
+                self.writer.add_scalar(
+                    f"train/{metric_name}", metric_value, self.train_step
+                )
 
             # Log to ClearML
             if self.clearml_task:
                 self.clearml_task.get_logger().report_scalar(
-                    title="train", series=metric_name, value=metric_value, iteration=self.train_step
+                    title="train",
+                    series=metric_name,
+                    value=metric_value,
+                    iteration=self.train_step,
                 )
 
         # Increment step counter after all metrics are logged
         self.train_step += 1
 
-    def save_val_metrics(self, probs: np.ndarray, preds: np.ndarray, gt: np.ndarray) -> None:
+    def save_val_metrics(
+        self, probs: np.ndarray, preds: np.ndarray, gt: np.ndarray
+    ) -> None:
         for metric_name, metric_fn in self.metrics_fn.items():
             metric_value = metric_fn(probs, preds, gt)
-            self.val_metrics_history[self.current_epoch][metric_name].append(metric_value)
+            self.val_metrics_history[self.current_epoch][metric_name].append(
+                metric_value
+            )
 
             # Log to TensorBoard
             if self.writer:
-                self.writer.add_scalar(f"val/{metric_name}", metric_value, self.val_step)
+                self.writer.add_scalar(
+                    f"val/{metric_name}", metric_value, self.val_step
+                )
 
             # Log to ClearML
             if self.clearml_task:
                 self.clearml_task.get_logger().report_scalar(
-                    title="val", series=metric_name, value=metric_value, iteration=self.val_step
+                    title="val",
+                    series=metric_name,
+                    value=metric_value,
+                    iteration=self.val_step,
                 )
 
         # Increment step counter after all metrics are logged
@@ -165,8 +192,12 @@ class MetricTracker:
                 avg_by_epochs[metric_name][epoch] = np.mean(metric_values)
 
         for metric_name, avg_values in avg_by_epochs.items():
-            print(f"Average train {metric_name}: {np.mean(list(avg_values.values())):2f}")
-            print(f"Average train {metric_name} by last epoch: {list(avg_values.values())[-1]:2f}")
+            print(
+                f"Average train {metric_name}: {np.mean(list(avg_values.values())):2f}"
+            )
+            print(
+                f"Average train {metric_name} by last epoch: {list(avg_values.values())[-1]:2f}"
+            )
 
     def val_metrics_info(self) -> None:
         avg_by_epochs = defaultdict(dict)
@@ -176,7 +207,9 @@ class MetricTracker:
 
         for metric_name, avg_values in avg_by_epochs.items():
             print(f"Average val {metric_name}: {np.mean(list(avg_values.values())):2f}")
-            print(f"Average val {metric_name} by last epoch: {list(avg_values.values())[-1]:2f}")
+            print(
+                f"Average val {metric_name} by last epoch: {list(avg_values.values())[-1]:2f}"
+            )
 
     def end_epoch(self) -> None:
         self.train_loss_info()

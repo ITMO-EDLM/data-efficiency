@@ -209,7 +209,9 @@ class Trainer:
         # Get current epoch metric
         current_metric = self._get_epoch_metric(epoch)
         if current_metric is None:
-            print(f"Warning: Could not get metric for epoch {epoch}, skipping checkpoint save")
+            print(
+                f"Warning: Could not get metric for epoch {epoch}, skipping checkpoint save"
+            )
             return
 
         # Create checkpoint directory
@@ -264,7 +266,9 @@ class Trainer:
                 epoch_dir = base_dir / f"epoch_{epoch}"
                 epoch_dir.mkdir(parents=True, exist_ok=True)
                 checkpoint_path = epoch_dir / "model.pt"
-                print(f"Removed checkpoint from epoch {worst_epoch} (metric: {worst_metric:.4f})")
+                print(
+                    f"Removed checkpoint from epoch {worst_epoch} (metric: {worst_metric:.4f})"
+                )
 
         if should_save and checkpoint_path:
             torch.save(checkpoint, checkpoint_path)
@@ -342,7 +346,10 @@ class Trainer:
         # 1. Find optimal batch size
         print("\n[1/2] Finding optimal batch size...")
         optimal_batch_size = find_optimal_batch_size(
-            self.model, self.train_dataset, self.device, initial_batch_size=self.batch_size
+            self.model,
+            self.train_dataset,
+            self.device,
+            initial_batch_size=self.batch_size,
         )
         print(f"Optimal batch size: {optimal_batch_size}")
         self.batch_size = optimal_batch_size
@@ -355,7 +362,9 @@ class Trainer:
         dropout_range = tuple(tuning_config["dropout_range"])
         lr_range = tuple(tuning_config["lr_range"])
         lr_head_range = (
-            tuple(tuning_config["lr_head_range"]) if tuning_config.get("lr_head_range") else None
+            tuple(tuning_config["lr_head_range"])
+            if tuning_config.get("lr_head_range")
+            else None
         )
         lr_backbone_range = (
             tuple(tuning_config["lr_backbone_range"])
@@ -382,7 +391,8 @@ class Trainer:
         }
         train_dataset = self.train_dataset.select(
             random.choices(
-                range(len(self.train_dataset)), k=int(len(self.train_dataset) * self.run_budget)
+                range(len(self.train_dataset)),
+                k=int(len(self.train_dataset) * self.run_budget),
             )
         )
         best_params, tuning_results = tune_hyperparameters(
@@ -409,7 +419,9 @@ class Trainer:
 
         print("\nBest hyperparameters found:")
         print(f"  dropout: {best_params['dropout']}")
-        print(f"  lr_head: {best_params.get('lr_head', best_params.get('lr', 'N/A')):.2e}")
+        print(
+            f"  lr_head: {best_params.get('lr_head', best_params.get('lr', 'N/A')):.2e}"
+        )
         if best_params.get("lr_backbone") is not None:
             print(f"  lr_backbone: {best_params['lr_backbone']:.2e}")
         if best_params.get("unfreeze_layers") is not None:
